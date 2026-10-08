@@ -200,7 +200,7 @@ st.markdown(
 # ============================================================
 
 st.markdown(
-    '<div class="main-title">Matéria: Agente para el cribado y diseño inverso de materiales</div>',
+    '<div class="main-title">Materia: Agente para el cribado y diseño inverso de materiales</div>',
     unsafe_allow_html=True
 )
 
