@@ -205,7 +205,7 @@ st.markdown(
 )
 
 st.markdown(
-    '<div class="subtitle">Desarrollado por  Dr. Jesús Arzola Andrés Arzola Flores</div>',
+    '<div class="subtitle">Desarrollado por  Dr. Jesús Andrés Arzola Flores</div>',
     unsafe_allow_html=True
 )
 
