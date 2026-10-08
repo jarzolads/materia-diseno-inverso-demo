@@ -1,13 +1,13 @@
 import os
 import json
-import re
+import time
 import numpy as np
 import pandas as pd
 import streamlit as st
 import plotly.express as px
 
 # ============================================================
-# CONFIGURACIÓN
+# CONFIGURACIÓN GENERAL
 # ============================================================
 
 st.set_page_config(
@@ -34,10 +34,6 @@ st.markdown(
     }
 
     [data-testid="stHeader"] {
-        background-color: #FFFFFF;
-    }
-
-    [data-testid="stToolbar"] {
         background-color: #FFFFFF;
     }
 
@@ -83,6 +79,7 @@ st.markdown(
         padding: 16px;
         border-radius: 8px;
         line-height: 1.6;
+        font-size: 16px;
     }
 
     .metric-card {
@@ -168,18 +165,38 @@ st.markdown(
     """
     <div class="description-box">
     <b>¿Para qué sirve Matéria?</b><br><br>
-    Matéria es un agente de inteligencia artificial para buscar materiales a
-    partir de propiedades objetivo. El usuario puede seleccionar valores
-    numéricos o escribir un prompt científico. El agente consulta Materials
-    Project, identifica candidatos, los compara y genera una estrategia
-    preliminar de síntesis y caracterización.
+
+    Matéria es un agente educativo que ayuda a buscar materiales a partir de
+    propiedades deseadas. El usuario puede elegir valores numéricos o escribir
+    un objetivo científico mediante un prompt.
+
+    <br><br>
+
+    La aplicación consulta materiales inorgánicos sólidos, como óxidos,
+    ferritas, cerámicos, aleaciones metálicas, materiales para energía y otros
+    compuestos con composición y estructura cristalina.
+
+    <br><br>
+
+    <b>¿Cómo realiza el diseño inverso?</b><br><br>
+
+    En el diseño directo se parte de un material y se calculan sus propiedades.
+    En Matéria ocurre lo contrario: el usuario comienza indicando las
+    propiedades que desea y el agente busca materiales existentes que se
+    aproximan a esos objetivos.
+
+    <br><br>
+
+    Por lo tanto, Matéria realiza una primera etapa de diseño inverso, llamada
+    cribado o selección inversa de candidatos. No genera automáticamente una
+    composición nueva ni sustituye la validación experimental.
     </div>
     """,
     unsafe_allow_html=True
 )
 
 st.caption(
-    "La aplicación utiliza datos de Materials Project y genera recomendaciones preliminares con Gemini."
+    "La aplicación consulta datos de Materials Project y utiliza Gemini para interpretar los resultados."
 )
 
 # ============================================================
@@ -202,7 +219,7 @@ GEMINI_MODEL = st.secrets.get(
 )
 
 # ============================================================
-# CONCEPTOS
+# CONCEPTOS CIENTÍFICOS
 # ============================================================
 
 st.markdown(
@@ -210,66 +227,158 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-with st.expander("Magnetización"):
+st.write(
+    """
+    Estos conceptos aparecen antes de la búsqueda para que una persona que no
+    sea especialista pueda comprender qué significa cada propiedad.
+    """
+)
+
+with st.expander("¿Qué es la magnetización?"):
     st.markdown(
         """
         <div class="concept-box">
-        La magnetización es el momento magnético por unidad de volumen. Indica
-        la intensidad con la que un material responde a un campo magnético
-        externo.
 
-        En hipertermia magnética puede relacionarse con la respuesta frente a un
-        campo alterno. También deben evaluarse el tamaño de partícula, la
-        estabilidad coloidal, la toxicidad y la biocompatibilidad.
+        Imagina que un material está formado por muchos pequeños imanes. La
+        magnetización describe qué tan alineados están esos pequeños imanes y
+        qué tan fuerte responde el material cuando se aplica un campo magnético.
+
+        Una magnetización alta puede ser útil cuando queremos manipular un
+        material mediante un imán o mediante un campo magnético alterno.
+
+        En hipertermia magnética puede influir en la respuesta del material ante
+        un campo magnético. Sin embargo, una magnetización alta no significa
+        automáticamente que el material sea seguro o adecuado para uso
+        biomédico.
+
+        También deben estudiarse el tamaño de partícula, la forma, la
+        estabilidad en agua, la toxicidad y la biocompatibilidad.
+
         </div>
         """,
         unsafe_allow_html=True
     )
 
-with st.expander("Energía sobre el envolvente"):
+with st.expander("¿Qué es la energía sobre el envolvente?"):
     st.markdown(
         """
         <div class="concept-box">
-        La energía sobre el envolvente, conocida como <i>energy above hull</i>
-        o E<sub>hull</sub>, es un indicador computacional de estabilidad
-        termodinámica.
 
-        Un valor cercano a cero indica que el material se encuentra cerca de la
-        envolvente de estabilidad. No garantiza que pueda sintetizarse.
+        La energía sobre el envolvente, llamada <i>energy above hull</i> o
+        E<sub>hull</sub>, es una medida calculada por computadora que ayuda a
+        estimar qué tan estable puede ser un material.
+
+        Para visualizarlo, imagina una montaña formada por diferentes
+        composiciones químicas. La envolvente representa las combinaciones más
+        estables. La energía sobre el envolvente indica qué tan lejos se
+        encuentra un material de esa región estable.
+
+        Un valor cercano a cero suele ser favorable. Un valor alto puede indicar
+        que el material podría transformarse en otras fases más estables.
+
+        Esta propiedad es una guía computacional y no garantiza que el material
+        pueda sintetizarse bajo cualquier condición.
+
         </div>
         """,
         unsafe_allow_html=True
     )
 
-with st.expander("Densidad"):
+with st.expander("¿Qué es la densidad?"):
     st.markdown(
         """
         <div class="concept-box">
-        La densidad es la masa por unidad de volumen. Puede influir en la
-        sedimentación, separación magnética y preparación de suspensiones.
+
+        La densidad indica cuánta masa existe dentro de un determinado volumen.
+
+        En nanopartículas y suspensiones, la densidad puede influir en qué tan
+        rápido sedimentan las partículas, qué tan fácil pueden separarse
+        mediante un campo magnético y cómo se comportan dentro de un líquido.
+
         </div>
         """,
         unsafe_allow_html=True
     )
 
-with st.expander("Diseño inverso"):
+with st.expander("¿Qué es el ordenamiento magnético?"):
     st.markdown(
         """
         <div class="concept-box">
-        En el diseño directo se parte de una composición y se calculan sus
-        propiedades.
 
-        En el diseño inverso se parte de las propiedades deseadas y se buscan
-        composiciones que puedan cumplirlas.
+        El ordenamiento magnético describe cómo se organizan los momentos
+        magnéticos de los átomos dentro de un material.
+
+        En un material ferromagnético, muchos momentos magnéticos apuntan en una
+        dirección semejante. En un material antiferromagnético, algunos apuntan
+        en direcciones opuestas y pueden cancelarse. En un material
+        ferrimagnético existe una organización opuesta, pero la cancelación no
+        es completa.
+
+        Esta información ayuda a comprender por qué ciertos materiales
+        responden fuertemente a un campo magnético.
+
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+with st.expander("¿Qué significa diseño inverso en esta aplicación?"):
+    st.markdown(
+        """
+        <div class="concept-box">
+
+        En el diseño directo se elige una composición, por ejemplo Fe3O4, y
+        después se calculan sus propiedades.
+
+        En el diseño inverso se realiza el procedimiento contrario:
 
         <br><br>
-        <b>Flujo del agente:</b>
-        <br>
-        1. El usuario define un objetivo.<br>
-        2. Gemini interpreta la solicitud.<br>
-        3. Materials Project proporciona candidatos.<br>
-        4. La aplicación filtra los resultados.<br>
-        5. Gemini genera una recomendación experimental preliminar.
+
+        1. El usuario indica las propiedades deseadas.<br>
+        2. Gemini interpreta el objetivo si se utilizó un prompt.<br>
+        3. Materials Project proporciona materiales existentes.<br>
+        4. La aplicación elimina los candidatos que no cumplen los límites.<br>
+        5. Gemini compara los mejores candidatos.<br>
+        6. Se propone una estrategia preliminar para estudiarlos.
+
+        <br><br>
+
+        En esta aplicación el diseño inverso es un cribado computacional de
+        candidatos. Todavía no se generan composiciones nuevas ni se realiza
+        una optimización completa mediante aprendizaje automático.
+
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+with st.expander("¿Para qué materiales funciona?"):
+    st.markdown(
+        """
+        <div class="concept-box">
+
+        Matéria está orientada principalmente a materiales inorgánicos sólidos
+        que pueden describirse mediante una composición química y una estructura
+        cristalina.
+
+        Puede utilizarse para explorar:
+
+        <br><br>
+
+        - Óxidos metálicos.<br>
+        - Ferritas y materiales magnéticos.<br>
+        - Cerámicos inorgánicos.<br>
+        - Aleaciones metálicas.<br>
+        - Materiales para baterías y energía.<br>
+        - Semiconductores.<br>
+        - Algunos materiales bidimensionales.
+
+        <br><br>
+
+        No está diseñada directamente para proteínas, polímeros, formulaciones
+        farmacéuticas o materiales biológicos. Para esos casos se necesitarían
+        otras bases de datos y propiedades específicas.
+
         </div>
         """,
         unsafe_allow_html=True
@@ -321,7 +430,7 @@ def extraer_json(texto):
     final = texto.rfind("}")
 
     if inicio == -1 or final == -1:
-        raise ValueError("No se encontró JSON válido.")
+        raise ValueError("Gemini no devolvió un JSON válido.")
 
     return json.loads(texto[inicio:final + 1])
 
@@ -348,11 +457,11 @@ def interpretar_prompt(prompt):
         )
 
         instrucciones = f"""
-        Analiza el siguiente objetivo de diseño inverso:
+        Analiza este objetivo de diseño inverso de materiales:
 
         {prompt}
 
-        Devuelve exclusivamente un JSON válido:
+        Devuelve exclusivamente un JSON válido con esta estructura:
 
         {{
           "magnetizacion_minima": 0.0,
@@ -364,11 +473,11 @@ def interpretar_prompt(prompt):
 
         Reglas:
 
-        - Si no se menciona magnetización, usa 0.
-        - Si no se menciona energía, usa 0.10.
-        - Si no se menciona densidad, usa 0.
-        - Extrae los símbolos químicos si aparecen.
-        - Si aparece un sistema como Fe-O, úsalo.
+        - Si no se menciona magnetización, utiliza 0.
+        - Si no se menciona energía, utiliza 0.10.
+        - Si no se menciona densidad, utiliza 0.
+        - Extrae los elementos mediante sus símbolos químicos.
+        - Si aparece un sistema como Fe-O, escríbelo en sistema_quimico.
         """
 
         respuesta = cliente.models.generate_content(
@@ -382,7 +491,7 @@ def interpretar_prompt(prompt):
             if clave not in valores:
                 valores[clave] = valor
 
-        return valores, "Gemini interpretó el prompt."
+        return valores, "Gemini interpretó el prompt correctamente."
 
     except Exception as error:
         return valores_defecto, (
@@ -421,13 +530,32 @@ def consultar_materials_project(
 
         if sistema_quimico.strip():
             parametros["chemsys"] = sistema_quimico.strip()
+
         elif elementos:
             parametros["elements"] = elementos
 
         with MPRester(MP_API_KEY) as mpr:
-            documentos = mpr.materials.summary.search(
-                **parametros
-            )
+            try:
+                documentos = mpr.materials.summary.search(
+                    **parametros
+                )
+
+            except Exception:
+                campos_sin_magnetizacion = [
+                    "material_id",
+                    "formula_pretty",
+                    "chemsys",
+                    "density",
+                    "energy_above_hull",
+                    "ordering",
+                    "symmetry"
+                ]
+
+                parametros["fields"] = campos_sin_magnetizacion
+
+                documentos = mpr.materials.summary.search(
+                    **parametros
+                )
 
         registros = []
 
@@ -524,23 +652,31 @@ def generar_recomendacion_gemini(prompt, resultados):
         )
 
         instrucciones = f"""
-        Actúa como un agente experto en diseño inverso de materiales,
+        Actúa como un agente educativo experto en diseño inverso de materiales,
         síntesis de materiales inorgánicos y caracterización experimental.
 
+        Explica todo con un lenguaje claro, como si hablaras con una persona
+        que conoce ciencia básica, pero que todavía no domina ciencia de
+        materiales.
+
         Objetivo del usuario:
+
         {prompt}
 
         Estos son los cinco mejores candidatos obtenidos de Materials Project:
 
         {json.dumps(candidatos, ensure_ascii=False, default=str)}
 
-        Redacta una respuesta completa en español usando exactamente las
-        siguientes secciones:
+        Explica explícitamente que esto es selección inversa o cribado de
+        materiales existentes. No genera automáticamente composiciones nuevas
+        y no garantiza que un candidato pueda sintetizarse.
+
+        Redacta la respuesta en español con estas secciones:
 
         ## 1. Interpretación del objetivo
 
-        Explica qué está buscando el usuario y por qué las propiedades elegidas
-        son importantes.
+        Explica qué está buscando el usuario y por qué las propiedades son
+        importantes.
 
         ## 2. Los cinco mejores candidatos
 
@@ -555,13 +691,13 @@ def generar_recomendacion_gemini(prompt, resultados):
 
         ## 4. Estrategia preliminar de síntesis
 
-        Explica paso a paso una ruta de síntesis razonable para el candidato.
-        No inventes cantidades exactas si no existe un protocolo específico.
+        Explica paso a paso una ruta de síntesis razonable. No inventes
+        cantidades exactas si no existe un protocolo específico.
 
         ## 5. Reactivos químicos necesarios
 
-        Incluye el nombre del precursor, función, pureza recomendable y
-        observaciones de seguridad.
+        Incluye precursor, función, pureza recomendable y observaciones de
+        seguridad.
 
         ## 6. Material y equipo de laboratorio
 
@@ -570,48 +706,45 @@ def generar_recomendacion_gemini(prompt, resultados):
 
         ## 7. Costo preliminar
 
-        Estima el costo de los precursores en pesos mexicanos. Separa el costo
-        de reactivos, consumibles y equipo. Indica claramente que los precios
-        son aproximados y deben cotizarse.
+        Estima el costo de los precursores y consumibles en pesos mexicanos.
+        Aclara que los precios son aproximados y deben cotizarse.
 
         ## 8. Proveedores potenciales
 
         Menciona empresas que normalmente distribuyen reactivos de laboratorio,
-        por ejemplo Merck/Sigma-Aldrich, Fisher Scientific, Thermo Fisher,
-        Alfa Aesar o proveedores mexicanos.
+        como Merck/Sigma-Aldrich, Fisher Scientific, Thermo Fisher, Alfa Aesar
+        o proveedores mexicanos.
 
-        No afirmes que tienen existencia actual. Indica que se debe confirmar
-        disponibilidad, presentación, pureza y precio.
+        No afirmes que tienen existencia actual. Se debe confirmar disponibilidad,
+        presentación, pureza y precio.
 
         ## 9. Fichas de datos de seguridad
 
-        Indica cómo localizar la SDS oficial de cada precursor. Proporciona
-        un enlace únicamente si estás seguro de que es un sitio oficial del
-        fabricante. Si no estás seguro, escribe: "Buscar en la página oficial
-        del proveedor utilizando el nombre exacto y el número CAS".
-
-        Nunca inventes enlaces.
+        Indica cómo localizar la SDS oficial de cada precursor. Proporciona un
+        enlace únicamente si estás seguro de que es oficial. Nunca inventes
+        enlaces. Si no estás seguro, indica que debe buscarse en la página
+        oficial del proveedor utilizando el nombre y CAS.
 
         ## 10. Laboratorios de la BUAP
 
         Sugiere qué tipo de laboratorios o unidades de la BUAP podrían ser
-        adecuados para síntesis y caracterización, por ejemplo laboratorios de
+        adecuados para síntesis y caracterización, como laboratorios de
         materiales, química, física del estado sólido, microscopía, difracción
         de rayos X o magnetometría.
 
-        No inventes nombres de laboratorios, responsables, disponibilidad ni
-        equipos específicos. Cuando no tengas certeza, escribe:
-        "Debe confirmarse con la unidad académica correspondiente de la BUAP".
+        No inventes nombres, responsables, disponibilidad ni equipos. Si no
+        tienes certeza, escribe que debe confirmarse con la unidad académica
+        correspondiente de la BUAP.
 
         ## 11. Caracterización recomendada
 
-        Indica técnicas como DRX, SEM, TEM, DLS, FTIR, VSM o magnetometría,
-        análisis térmico y potencial zeta cuando sean pertinentes.
+        Considera DRX, SEM, TEM, DLS, FTIR, VSM o magnetometría, análisis
+        térmico y potencial zeta cuando sean pertinentes.
 
-        ## 12. Advertencias
+        ## 12. Limitaciones y seguridad
 
-        Aclara que Materials Project proporciona resultados calculados y que
-        la síntesis, toxicidad, biocompatibilidad y aplicación biomédica deben
+        Aclara que Materials Project proporciona propiedades calculadas y que la
+        síntesis, toxicidad, biocompatibilidad y desempeño biomédico deben
         validarse experimentalmente.
         """
 
@@ -662,6 +795,13 @@ if modo_busqueda == "Elegir valores de propiedades":
         unsafe_allow_html=True
     )
 
+    st.write(
+        """
+        Define los límites de las propiedades que deseas utilizar para filtrar
+        los materiales de Materials Project.
+        """
+    )
+
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -702,7 +842,7 @@ if modo_busqueda == "Elegir valores de propiedades":
     sistema_quimico = st.text_input(
         "Sistema químico opcional",
         value="",
-        help="Ejemplo: Fe-O. Si se completa, tiene prioridad."
+        help="Ejemplo: Fe-O. Si se completa, tendrá prioridad."
     )
 
     elementos = [
@@ -727,7 +867,7 @@ else:
     )
 
     prompt_usuario = st.text_area(
-        "Escribe tu prompt",
+        "Escribe tu prompt científico",
         value=(
             "Busca materiales magnéticos estables basados en hierro, con alta "
             "magnetización, para explorar hipertermia magnética."
@@ -739,25 +879,65 @@ else:
         """
         Ejemplo:
 
-        *Busca un material estable con alta magnetización, baja densidad y
-        posible aplicación en hipertermia magnética. Considera sistemas basados
-        en hierro, cobalto, níquel y oxígeno.*
+        Busca un material estable con alta magnetización, baja densidad y
+        posible aplicación en hipertermia magnética. Considera sistemas
+        basados en hierro, cobalto, níquel y oxígeno.
         """
     )
 
-    interpretar = st.button(
-        "Interpretar prompt con Gemini",
-        use_container_width=True
-    )
+# ============================================================
+# OPCIONES Y EJECUCIÓN
+# ============================================================
 
-    if interpretar:
+st.markdown(
+    '<div class="section-title">Consulta a Materials Project</div>',
+    unsafe_allow_html=True
+)
 
-        with st.spinner("Gemini está interpretando el prompt..."):
-            valores, mensaje = interpretar_prompt(
+limite = st.slider(
+    "Número máximo de registros que se consultarán",
+    min_value=10,
+    max_value=500,
+    value=100,
+    step=10
+)
+
+buscar = st.button(
+    "🔎 Buscar materiales",
+    type="primary",
+    use_container_width=True
+)
+
+if buscar:
+
+    if not MP_API_KEY:
+        st.error(
+            """
+            No se encontró MP_API_KEY.
+
+            En Streamlit Cloud ve a:
+
+            Manage app → Settings → Secrets
+
+            y agrega:
+
+            MP_API_KEY = "tu_clave_de_materials_project"
+            """
+        )
+        st.stop()
+
+    if modo_busqueda == "Escribir un prompt científico":
+
+        inicio_prompt = time.time()
+
+        with st.spinner(
+            "Gemini está interpretando el prompt..."
+        ):
+            valores, mensaje_prompt = interpretar_prompt(
                 prompt_usuario
             )
 
-        st.success(mensaje)
+        st.info(mensaje_prompt)
 
         magnetizacion_minima = float(
             valores.get("magnetizacion_minima", 0.0)
@@ -771,10 +951,21 @@ else:
             valores.get("densidad_maxima", 0.0)
         )
 
-        elementos = valores.get("elementos", [])
+        elementos = valores.get(
+            "elementos",
+            []
+        )
+
         sistema_quimico = valores.get(
             "sistema_quimico",
             ""
+        )
+
+        tiempo_prompt = time.time() - inicio_prompt
+
+        st.caption(
+            f"Tiempo de interpretación del prompt: "
+            f"{tiempo_prompt:.1f} segundos"
         )
 
         st.subheader("Criterios interpretados por Gemini")
@@ -808,57 +999,25 @@ else:
             hide_index=True
         )
 
-# ============================================================
-# CONSULTA
-# ============================================================
-
-st.markdown(
-    '<div class="section-title">Consulta a Materials Project</div>',
-    unsafe_allow_html=True
-)
-
-limite = st.slider(
-    "Número máximo de registros que se consultarán",
-    min_value=10,
-    max_value=500,
-    value=100,
-    step=10
-)
-
-buscar = st.button(
-    "🔎 Buscar materiales",
-    type="primary",
-    use_container_width=True
-)
-
-if buscar:
-
-    if not MP_API_KEY:
-        st.error(
-            """
-            No se encontró `MP_API_KEY`.
-
-            Agrégala en:
-
-            `Manage app → Settings → Secrets`
-
-            con este formato:
-
-            `MP_API_KEY = "tu_clave_de_materials_project"`
-            """
-        )
-        st.stop()
+    inicio_mp = time.time()
 
     with st.spinner(
-        "Consultando directamente Materials Project..."
+        "Materials Project está buscando materiales..."
     ):
-        datos, mensaje = consultar_materials_project(
+        datos, mensaje_mp = consultar_materials_project(
             elementos=elementos,
             sistema_quimico=sistema_quimico,
             limite=limite
         )
 
-    st.success(mensaje)
+    tiempo_mp = time.time() - inicio_mp
+
+    st.success(mensaje_mp)
+
+    st.caption(
+        f"Tiempo de consulta a Materials Project: "
+        f"{tiempo_mp:.1f} segundos"
+    )
 
     if datos.empty:
         st.error(
@@ -886,10 +1045,10 @@ if buscar:
         st.warning(
             f"""
             Materials Project devolvió {len(datos)} registros, pero ninguno
-            cumple todos los criterios seleccionados.
+            cumple simultáneamente los criterios seleccionados.
 
-            Prueba aumentando la energía máxima o reduciendo la magnetización
-            mínima.
+            Prueba aumentando la energía máxima, reduciendo la magnetización
+            mínima o eliminando el filtro de densidad.
             """
         )
 
@@ -938,15 +1097,17 @@ if buscar:
             ].dropna()
 
             if magnetizaciones.empty:
-                valor = "N/D"
+                valor_magnetizacion = "N/D"
             else:
-                valor = f"{magnetizaciones.max():.2f}"
+                valor_magnetizacion = (
+                    f"{magnetizaciones.max():.2f}"
+                )
 
             st.markdown(
                 f"""
                 <div class="metric-card">
                     <h4>Mayor magnetización</h4>
-                    <h2>{valor}</h2>
+                    <h2>{valor_magnetizacion}</h2>
                 </div>
                 """,
                 unsafe_allow_html=True
@@ -989,7 +1150,7 @@ if buscar:
                     "density": "Densidad",
                     "chemsys": "Sistema químico"
                 },
-                title="Mapa de candidatos"
+                title="Mapa de candidatos encontrados"
             )
 
             grafica.update_layout(
@@ -1011,12 +1172,22 @@ if buscar:
         )
 
         with st.spinner(
-            "Gemini está preparando el análisis científico..."
+            "Gemini está analizando los cinco candidatos y preparando "
+            "la síntesis, costos, proveedores y caracterización..."
         ):
+            inicio_gemini = time.time()
+
             recomendacion = generar_recomendacion_gemini(
                 prompt_usuario,
                 mejores
             )
+
+            tiempo_gemini = time.time() - inicio_gemini
+
+        st.caption(
+            f"Tiempo de interpretación completa: "
+            f"{tiempo_gemini:.1f} segundos"
+        )
 
         st.markdown(
             f"""
@@ -1035,11 +1206,16 @@ st.markdown(
     """
     <div class="warning-box">
     <b>Nota importante:</b><br><br>
+
     Los candidatos provienen de datos computacionales. Las cantidades de
     reactivos, costos, proveedores, fichas SDS y laboratorios sugeridos deben
-    verificarse antes de realizar cualquier experimento. La disponibilidad de
-    equipos y laboratorios de la BUAP debe confirmarse directamente con la
-    unidad académica correspondiente.
+    verificarse antes de realizar cualquier experimento.
+
+    La disponibilidad de equipos y laboratorios de la BUAP debe confirmarse
+    directamente con la unidad académica correspondiente.
+
+    La aplicación realiza cribado computacional y no garantiza síntesis,
+    toxicidad, biocompatibilidad ni desempeño clínico.
     </div>
     """,
     unsafe_allow_html=True
