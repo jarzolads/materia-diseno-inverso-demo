@@ -5,3 +5,4 @@ plotly
 mp-api
 pymatgen
 google-genai
+scikit-learn
