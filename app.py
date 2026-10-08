@@ -200,12 +200,12 @@ st.markdown(
 # ============================================================
 
 st.markdown(
-    '<div class="main-title">Matéria: Agente para el diseño inverso de materiales</div>',
+    '<div class="main-title">Matéria: Agente para el cribado y diseño inverso de materiales</div>',
     unsafe_allow_html=True
 )
 
 st.markdown(
-    '<div class="subtitle">Desarrollado por Jesús Arzola</div>',
+    '<div class="subtitle">Desarrollado por  Dr. Jesús Arzola Andrés Arzola Flores</div>',
     unsafe_allow_html=True
 )
 
