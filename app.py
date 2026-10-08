@@ -7,7 +7,7 @@ import streamlit as st
 import plotly.express as px
 
 # ============================================================
-# CONFIGURACIÓN GENERAL
+# CONFIGURACIÓN
 # ============================================================
 
 st.set_page_config(
@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # ============================================================
-# ESTILO CLARO
+# ESTILO VISUAL
 # ============================================================
 
 st.markdown(
@@ -29,12 +29,10 @@ st.markdown(
         color: #172B4D;
     }
 
-    [data-testid="stSidebar"] {
+    [data-testid="stSidebar"],
+    [data-testid="stHeader"],
+    [data-testid="stToolbar"] {
         background-color: #F5F9FC;
-    }
-
-    [data-testid="stHeader"] {
-        background-color: #FFFFFF;
     }
 
     .main-title {
@@ -66,10 +64,20 @@ st.markdown(
         background-color: #EAF5FB;
         border-left: 6px solid #1976A8;
         color: #172B4D !important;
-        padding: 18px;
+        padding: 14px 18px;
         border-radius: 8px;
-        line-height: 1.6;
+        line-height: 1.45;
         font-size: 16px;
+        margin-bottom: 12px;
+    }
+
+    .description-box p {
+        margin: 7px 0;
+    }
+
+    .description-box b {
+        display: inline-block;
+        margin-bottom: 3px;
     }
 
     .concept-box {
@@ -107,10 +115,50 @@ st.markdown(
         background-color: #F8FAFC;
         border: 1px solid #C8D6E5;
         color: #172B4D !important;
-        padding: 22px;
+        padding: 18px;
         border-radius: 8px;
-        line-height: 1.7;
+        line-height: 1.55;
         font-size: 16px;
+    }
+
+    .agent-box h1,
+    .agent-box h2,
+    .agent-box h3 {
+        color: #124E78 !important;
+        margin-top: 18px;
+        margin-bottom: 8px;
+    }
+
+    .agent-box p {
+        margin: 6px 0;
+    }
+
+    .agent-box table {
+        width: 100% !important;
+        table-layout: fixed;
+        border-collapse: collapse;
+        font-size: 14px;
+        margin: 8px 0;
+    }
+
+    .agent-box th,
+    .agent-box td {
+        padding: 6px 8px !important;
+        text-align: left;
+        vertical-align: top;
+        white-space: normal !important;
+        word-wrap: break-word;
+        border: 1px solid #D5E0E8;
+    }
+
+    .agent-box th {
+        background-color: #EAF5FB;
+        color: #124E78;
+    }
+
+    .agent-box td {
+        color: #172B4D;
+        background-color: #FFFFFF;
     }
 
     .warning-box {
@@ -164,32 +212,36 @@ st.markdown(
 st.markdown(
     """
     <div class="description-box">
-    <b>¿Para qué sirve Matéria?</b><br><br>
 
+    <b>¿Para qué sirve Matéria?</b>
+
+    <p>
     Matéria es un agente educativo que ayuda a buscar materiales a partir de
     propiedades deseadas. El usuario puede elegir valores numéricos o escribir
     un objetivo científico mediante un prompt.
+    </p>
 
-    <br><br>
-
+    <p>
     La aplicación consulta materiales inorgánicos sólidos, como óxidos,
     ferritas, cerámicos, aleaciones metálicas, materiales para energía y otros
     compuestos con composición y estructura cristalina.
+    </p>
 
-    <br><br>
+    <b>¿Cómo realiza el diseño inverso?</b>
 
-    <b>¿Cómo realiza el diseño inverso?</b><br><br>
-
+    <p>
     En el diseño directo se parte de un material y se calculan sus propiedades.
     En Matéria ocurre lo contrario: el usuario comienza indicando las
     propiedades que desea y el agente busca materiales existentes que se
     aproximan a esos objetivos.
+    </p>
 
-    <br><br>
-
+    <p>
     Por lo tanto, Matéria realiza una primera etapa de diseño inverso, llamada
     cribado o selección inversa de candidatos. No genera automáticamente una
     composición nueva ni sustituye la validación experimental.
+    </p>
+
     </div>
     """,
     unsafe_allow_html=True
@@ -268,10 +320,9 @@ with st.expander("¿Qué es la energía sobre el envolvente?"):
         E<sub>hull</sub>, es una medida calculada por computadora que ayuda a
         estimar qué tan estable puede ser un material.
 
-        Para visualizarlo, imagina una montaña formada por diferentes
-        composiciones químicas. La envolvente representa las combinaciones más
-        estables. La energía sobre el envolvente indica qué tan lejos se
-        encuentra un material de esa región estable.
+        La envolvente representa las combinaciones químicas más estables. La
+        energía sobre el envolvente indica qué tan lejos se encuentra un material
+        de esa región estable.
 
         Un valor cercano a cero suele ser favorable. Un valor alto puede indicar
         que el material podría transformarse en otras fases más estables.
@@ -291,9 +342,8 @@ with st.expander("¿Qué es la densidad?"):
 
         La densidad indica cuánta masa existe dentro de un determinado volumen.
 
-        En nanopartículas y suspensiones, la densidad puede influir en qué tan
-        rápido sedimentan las partículas, qué tan fácil pueden separarse
-        mediante un campo magnético y cómo se comportan dentro de un líquido.
+        En nanopartículas y suspensiones, puede influir en la sedimentación, la
+        separación magnética y el comportamiento dentro de un líquido.
 
         </div>
         """,
@@ -314,9 +364,6 @@ with st.expander("¿Qué es el ordenamiento magnético?"):
         ferrimagnético existe una organización opuesta, pero la cancelación no
         es completa.
 
-        Esta información ayuda a comprender por qué ciertos materiales
-        responden fuertemente a un campo magnético.
-
         </div>
         """,
         unsafe_allow_html=True
@@ -332,8 +379,7 @@ with st.expander("¿Qué significa diseño inverso en esta aplicación?"):
 
         En el diseño inverso se realiza el procedimiento contrario:
 
-        <br><br>
-
+        <br>
         1. El usuario indica las propiedades deseadas.<br>
         2. Gemini interpreta el objetivo si se utilizó un prompt.<br>
         3. Materials Project proporciona materiales existentes.<br>
@@ -341,7 +387,7 @@ with st.expander("¿Qué significa diseño inverso en esta aplicación?"):
         5. Gemini compara los mejores candidatos.<br>
         6. Se propone una estrategia preliminar para estudiarlos.
 
-        <br><br>
+        <br>
 
         En esta aplicación el diseño inverso es un cribado computacional de
         candidatos. Todavía no se generan composiciones nuevas ni se realiza
@@ -363,8 +409,7 @@ with st.expander("¿Para qué materiales funciona?"):
 
         Puede utilizarse para explorar:
 
-        <br><br>
-
+        <br>
         - Óxidos metálicos.<br>
         - Ferritas y materiales magnéticos.<br>
         - Cerámicos inorgánicos.<br>
@@ -373,7 +418,7 @@ with st.expander("¿Para qué materiales funciona?"):
         - Semiconductores.<br>
         - Algunos materiales bidimensionales.
 
-        <br><br>
+        <br>
 
         No está diseñada directamente para proteínas, polímeros, formulaciones
         farmacéuticas o materiales biológicos. Para esos casos se necesitarían
@@ -445,9 +490,7 @@ def interpretar_prompt(prompt):
     }
 
     if not GEMINI_API_KEY:
-        return valores_defecto, (
-            "Gemini no está conectado."
-        )
+        return valores_defecto, "Gemini no está conectado."
 
     try:
         from google import genai
@@ -461,7 +504,7 @@ def interpretar_prompt(prompt):
 
         {prompt}
 
-        Devuelve exclusivamente un JSON válido con esta estructura:
+        Devuelve exclusivamente un JSON válido:
 
         {{
           "magnetizacion_minima": 0.0,
@@ -499,11 +542,7 @@ def interpretar_prompt(prompt):
         )
 
 
-def consultar_materials_project(
-    elementos,
-    sistema_quimico,
-    limite
-):
+def consultar_materials_project(elementos, sistema_quimico, limite):
     if not MP_API_KEY:
         return pd.DataFrame(), (
             "No se encontró MP_API_KEY en Streamlit Secrets."
@@ -530,7 +569,6 @@ def consultar_materials_project(
 
         if sistema_quimico.strip():
             parametros["chemsys"] = sistema_quimico.strip()
-
         elif elementos:
             parametros["elements"] = elementos
 
@@ -539,7 +577,6 @@ def consultar_materials_project(
                 documentos = mpr.materials.summary.search(
                     **parametros
                 )
-
             except Exception:
                 campos_sin_magnetizacion = [
                     "material_id",
@@ -655,21 +692,23 @@ def generar_recomendacion_gemini(prompt, resultados):
         Actúa como un agente educativo experto en diseño inverso de materiales,
         síntesis de materiales inorgánicos y caracterización experimental.
 
-        Explica todo con un lenguaje claro, como si hablaras con una persona
-        que conoce ciencia básica, pero que todavía no domina ciencia de
-        materiales.
+        Explica todo con un lenguaje claro, como si hablaras con una persona que
+        conoce ciencia básica, pero que todavía no domina ciencia de materiales.
 
         Objetivo del usuario:
 
         {prompt}
 
-        Estos son los cinco mejores candidatos obtenidos de Materials Project:
+        Candidatos obtenidos desde Materials Project:
 
         {json.dumps(candidatos, ensure_ascii=False, default=str)}
 
         Explica explícitamente que esto es selección inversa o cribado de
         materiales existentes. No genera automáticamente composiciones nuevas
         y no garantiza que un candidato pueda sintetizarse.
+
+        Utiliza párrafos breves, tablas compactas y evita líneas vacías
+        innecesarias entre secciones.
 
         Redacta la respuesta en español con estas secciones:
 
@@ -680,9 +719,11 @@ def generar_recomendacion_gemini(prompt, resultados):
 
         ## 2. Los cinco mejores candidatos
 
-        Presenta una tabla o lista comparativa con fórmula, sistema químico,
-        magnetización, energía sobre el envolvente, densidad y ordenamiento
-        magnético.
+        Presenta una tabla compacta con estas columnas:
+
+        | Candidato | Fórmula | Sistema químico | Magnetización | E_hull | Densidad | Ordenamiento |
+
+        No incluyas explicaciones largas dentro de la tabla.
 
         ## 3. Candidato recomendado
 
@@ -696,8 +737,9 @@ def generar_recomendacion_gemini(prompt, resultados):
 
         ## 5. Reactivos químicos necesarios
 
-        Incluye precursor, función, pureza recomendable y observaciones de
-        seguridad.
+        Presenta una tabla compacta con:
+
+        | Reactivo | Función | Cantidad aproximada | Seguridad |
 
         ## 6. Material y equipo de laboratorio
 
@@ -706,7 +748,14 @@ def generar_recomendacion_gemini(prompt, resultados):
 
         ## 7. Costo preliminar
 
-        Estima el costo de los precursores y consumibles en pesos mexicanos.
+        Presenta una tabla compacta con exactamente estas columnas:
+
+        | Reactivo o consumible | Cantidad estimada | Precio unitario (MXN) | Costo estimado (MXN) |
+
+        Utiliza cantidades breves y redondeadas. No escribas explicaciones
+        largas dentro de la tabla. Después de la tabla agrega una sola línea
+        con el costo total.
+
         Aclara que los precios son aproximados y deben cotizarse.
 
         ## 8. Proveedores potenciales
@@ -715,15 +764,15 @@ def generar_recomendacion_gemini(prompt, resultados):
         como Merck/Sigma-Aldrich, Fisher Scientific, Thermo Fisher, Alfa Aesar
         o proveedores mexicanos.
 
-        No afirmes que tienen existencia actual. Se debe confirmar disponibilidad,
-        presentación, pureza y precio.
+        No afirmes que tienen existencia actual. Se debe confirmar la
+        disponibilidad, presentación, pureza y precio.
 
         ## 9. Fichas de datos de seguridad
 
         Indica cómo localizar la SDS oficial de cada precursor. Proporciona un
         enlace únicamente si estás seguro de que es oficial. Nunca inventes
         enlaces. Si no estás seguro, indica que debe buscarse en la página
-        oficial del proveedor utilizando el nombre y CAS.
+        oficial del proveedor utilizando el nombre y el número CAS.
 
         ## 10. Laboratorios de la BUAP
 
@@ -785,7 +834,7 @@ elementos = []
 sistema_quimico = ""
 
 # ============================================================
-# MODO POR PARÁMETROS
+# BÚSQUEDA POR PARÁMETROS
 # ============================================================
 
 if modo_busqueda == "Elegir valores de propiedades":
@@ -793,13 +842,6 @@ if modo_busqueda == "Elegir valores de propiedades":
     st.markdown(
         '<div class="section-title">Parámetros de propiedades</div>',
         unsafe_allow_html=True
-    )
-
-    st.write(
-        """
-        Define los límites de las propiedades que deseas utilizar para filtrar
-        los materiales de Materials Project.
-        """
     )
 
     col1, col2, col3 = st.columns(3)
@@ -856,7 +898,7 @@ if modo_busqueda == "Elegir valores de propiedades":
     )
 
 # ============================================================
-# MODO POR PROMPT
+# BÚSQUEDA POR PROMPT
 # ============================================================
 
 else:
@@ -886,7 +928,7 @@ else:
     )
 
 # ============================================================
-# OPCIONES Y EJECUCIÓN
+# CONSULTA
 # ============================================================
 
 st.markdown(
