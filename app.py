@@ -21,9 +21,9 @@ st.caption("Demostración educativa con Gemini y Materials Project")
 
 st.write(
     """
-    Esta aplicación muestra cómo un agente puede interpretar propiedades
-    objetivo, buscar materiales candidatos y proponer una estrategia
-    experimental preliminar.
+    Esta aplicación muestra cómo un agente de inteligencia artificial puede
+    interpretar propiedades objetivo, buscar materiales candidatos y proponer
+    una estrategia preliminar de síntesis.
     """
 )
 
@@ -50,61 +50,56 @@ st.header("1. Conceptos científicos")
 
 st.info(
     """
-    Antes de elegir los valores de búsqueda, revisa qué significa cada
-    propiedad y por qué puede ser importante.
+    Antes de elegir valores, revisa qué significa cada propiedad.
     """
 )
 
 with st.expander("Magnetización"):
     st.markdown(
         """
-        La magnetización es el momento magnético por unidad de volumen de un
-        material. Indica qué tan intensamente puede responder frente a un campo
+        La magnetización es el momento magnético por unidad de volumen.
+        Indica qué tan intensamente responde un material frente a un campo
         magnético externo.
 
-        En aplicaciones de hipertermia magnética, una magnetización elevada
-        puede favorecer la respuesta al campo alterno. Sin embargo, también
-        deben estudiarse el tamaño de partícula, la estabilidad, la dispersión
-        y la biocompatibilidad.
+        En hipertermia magnética puede relacionarse con la respuesta del
+        material ante un campo alterno. Sin embargo, también deben estudiarse
+        el tamaño de partícula, la estabilidad, la dispersión y la
+        biocompatibilidad.
         """
     )
 
 with st.expander("Energía sobre el envolvente"):
     st.markdown(
         """
-        La energía sobre el envolvente, conocida como `energy above hull` o
-        `E_hull`, es una medida computacional de estabilidad termodinámica.
+        La energía sobre el envolvente, o `energy above hull`, es un indicador
+        computacional de estabilidad termodinámica.
 
-        Un valor cercano a cero indica que el material está cerca de la
-        envolvente de estabilidad. Un valor mayor puede indicar que existen
-        otras fases más estables. Este valor no garantiza que la síntesis sea
-        posible, pero ayuda a priorizar candidatos.
+        Un valor cercano a cero indica que el material se encuentra cerca de la
+        envolvente de estabilidad. Un valor alto puede indicar que existen
+        fases alternativas más estables.
         """
     )
 
 with st.expander("Densidad"):
     st.markdown(
         """
-        La densidad es la cantidad de masa por unidad de volumen.
-
-        En nanopartículas puede influir en la sedimentación, la separación
-        magnética, la preparación de suspensiones y el transporte del material.
+        La densidad es la masa por unidad de volumen. Puede influir en la
+        sedimentación, la separación magnética y el comportamiento de una
+        suspensión de nanopartículas.
         """
     )
 
 with st.expander("Ordenamiento magnético"):
     st.markdown(
         """
-        El ordenamiento magnético describe cómo se organizan los momentos
-        magnéticos dentro del sólido.
+        Describe la organización de los momentos magnéticos del sólido.
 
         Algunos tipos son ferromagnético, antiferromagnético, ferrimagnético y
-        paramagnético. Para materiales magnéticos se debe estudiar cómo cambia
-        la respuesta al aplicar un campo externo.
+        paramagnético.
         """
     )
 
-with st.expander("¿Qué es el diseño inverso?"):
+with st.expander("Diseño inverso"):
     st.markdown(
         """
         En el diseño directo se parte de una composición y se calculan sus
@@ -113,22 +108,22 @@ with st.expander("¿Qué es el diseño inverso?"):
         En el diseño inverso se parte de las propiedades deseadas y se buscan
         composiciones que potencialmente puedan cumplirlas.
 
-        El flujo de trabajo es:
+        El flujo general es:
 
-        1. Definir las propiedades objetivo.
-        2. Buscar materiales en una base de datos.
-        3. Filtrar los candidatos.
-        4. Comparar sus propiedades.
+        1. Definir propiedades objetivo.
+        2. Consultar una base de datos.
+        3. Filtrar materiales.
+        4. Comparar candidatos.
         5. Proponer una estrategia experimental.
-        6. Verificar experimentalmente el resultado.
+        6. Validar experimentalmente.
         """
     )
 
 st.warning(
     """
-    Materials Project contiene principalmente propiedades calculadas para
-    estructuras cristalinas. Los resultados no sustituyen la caracterización
-    experimental ni garantizan biocompatibilidad o uso clínico.
+    Materials Project proporciona principalmente propiedades calculadas para
+    estructuras cristalinas. Estos datos no sustituyen la caracterización
+    experimental ni garantizan biocompatibilidad.
     """
 )
 
@@ -193,9 +188,49 @@ DATOS_DEMO = pd.DataFrame([
 # FUNCIONES
 # ============================================================
 
+def preparar_columnas(datos):
+    """
+    Crea las columnas necesarias para evitar errores KeyError.
+    """
+
+    resultado = datos.copy()
+
+    columnas_requeridas = [
+        "material_id",
+        "formula_pretty",
+        "chemsys",
+        "density",
+        "energy_above_hull",
+        "ordering",
+        "total_magnetization_normalized_vol",
+        "symmetry"
+    ]
+
+    for columna in columnas_requeridas:
+        if columna not in resultado.columns:
+            resultado[columna] = np.nan
+
+    columnas_numericas = [
+        "density",
+        "energy_above_hull",
+        "total_magnetization_normalized_vol"
+    ]
+
+    for columna in columnas_numericas:
+        resultado[columna] = pd.to_numeric(
+            resultado[columna],
+            errors="coerce"
+        )
+
+    return resultado
+
+
 def cargar_materials_project():
     if not MP_API_KEY:
-        return DATOS_DEMO.copy(), "Se están utilizando datos demostrativos."
+        return (
+            DATOS_DEMO.copy(),
+            "Se están utilizando datos demostrativos."
+        )
 
     try:
         from mp_api.client import MPRester
@@ -245,60 +280,24 @@ def cargar_materials_project():
                 )
             })
 
-        datos = pd.DataFrame(registros)
+        datos = preparar_columnas(
+            pd.DataFrame(registros)
+        )
 
         if datos.empty:
-            return DATOS_DEMO.copy(), (
-                "La consulta no devolvió datos. "
-                "Se utilizaron datos demostrativos."
+            return (
+                DATOS_DEMO.copy(),
+                "No se encontraron datos. Se utilizaron datos demostrativos."
             )
 
         return datos, "Datos cargados desde Materials Project."
 
     except Exception as error:
-        return DATOS_DEMO.copy(), (
+        return (
+            DATOS_DEMO.copy(),
             "No fue posible consultar Materials Project. "
-            "Se utilizaron datos demostrativos. "
-            f"Detalle: {error}"
+            f"Se utilizaron datos demostrativos. Detalle: {error}"
         )
-
-
-def preparar_columnas(datos):
-    """
-    Garantiza que las columnas necesarias existan aunque Materials Project
-    no devuelva alguna propiedad.
-    """
-
-    resultado = datos.copy()
-
-    columnas_requeridas = [
-        "material_id",
-        "formula_pretty",
-        "chemsys",
-        "density",
-        "energy_above_hull",
-        "ordering",
-        "total_magnetization_normalized_vol",
-        "symmetry"
-    ]
-
-    for columna in columnas_requeridas:
-        if columna not in resultado.columns:
-            resultado[columna] = np.nan
-
-    columnas_numericas = [
-        "density",
-        "energy_above_hull",
-        "total_magnetization_normalized_vol"
-    ]
-
-    for columna in columnas_numericas:
-        resultado[columna] = pd.to_numeric(
-            resultado[columna],
-            errors="coerce"
-        )
-
-    return resultado
 
 
 def filtrar_materiales(
@@ -310,8 +309,10 @@ def filtrar_materiales(
 ):
     resultado = preparar_columnas(datos)
 
+    # IMPORTANTE:
+    # El nombre correcto es magnetization, escrito en inglés.
     magnetizacion = resultado[
-        "total_magnetizacion_normalized_vol"
+        "total_magnetization_normalized_vol"
     ].fillna(0)
 
     energia = resultado[
@@ -327,12 +328,12 @@ def filtrar_materiales(
     ]
 
     resultado = resultado[
-        energia <= energia_maxima
+        energia.loc[resultado.index] <= energia_maxima
     ]
 
     if densidad_maxima > 0:
         resultado = resultado[
-            densidad <= densidad_maxima
+            densidad.loc[resultado.index] <= densidad_maxima
         ]
 
     if ordenar_por == "Mayor magnetización":
@@ -370,22 +371,22 @@ def consultar_gemini(consulta, candidatos):
         prompt = f"""
         Actúa como un agente educativo de diseño inverso de materiales.
 
-        Solicitud:
+        Solicitud del usuario:
         {consulta}
 
-        Candidatos encontrados:
+        Candidatos:
         {json.dumps(datos, ensure_ascii=False, default=str)}
 
-        Responde en español y explica:
+        Responde en español e indica:
 
         1. Qué propiedad es prioritaria.
         2. Qué candidato parece más interesante.
-        3. Qué compromisos existen entre estabilidad, magnetización y densidad.
+        3. Qué compromisos existen entre las propiedades.
         4. Qué información experimental falta.
         5. Qué estrategia preliminar de síntesis podría explorarse.
-        6. Qué técnicas de caracterización deberían utilizarse.
+        6. Qué caracterizaciones deberían realizarse.
 
-        No afirmes que el material es automáticamente biocompatible o clínico.
+        No afirmes que el material es automáticamente biocompatible.
         """
 
         respuesta = cliente.models.generate_content(
@@ -453,7 +454,7 @@ consulta_usuario = st.text_area(
 )
 
 # ============================================================
-# EJECUCIÓN
+# BOTONES
 # ============================================================
 
 columna_a, columna_b = st.columns(2)
@@ -480,6 +481,10 @@ if boton_cargar or boton_ejemplo:
 
     st.success(mensaje)
 
+# ============================================================
+# RESULTADOS
+# ============================================================
+
 if boton_cargar or boton_ejemplo:
 
     resultados = filtrar_materiales(
@@ -497,9 +502,8 @@ if boton_cargar or boton_ejemplo:
             """
             No se encontraron materiales con estos criterios.
 
-            Como Materials Project no siempre proporciona magnetización para
-            todos los materiales, prueba con una magnetización mínima menor o
-            utiliza los datos demostrativos.
+            Prueba reduciendo la magnetización mínima o aumentando la energía
+            sobre el envolvente máxima.
             """
         )
     else:
@@ -569,8 +573,7 @@ st.header("5. Estrategia preliminar de síntesis")
 st.write(
     """
     Como ejemplo se propone la síntesis de magnetita (Fe3O4) mediante
-    coprecipitación de sales de hierro. Esta es una estrategia educativa y
-    preliminar, no un protocolo experimental validado.
+    coprecipitación de sales de hierro.
     """
 )
 
@@ -677,7 +680,7 @@ st.subheader("Procedimiento paso a paso")
 pasos = [
     "Revisar las hojas de seguridad y preparar el área de trabajo con bata, guantes, gafas y campana de extracción.",
 
-    "Definir la escala de síntesis y calcular las cantidades de FeCl3·6H2O y FeCl2·4H2O de acuerdo con un protocolo validado.",
+    "Definir la escala de síntesis y calcular las cantidades de FeCl3·6H2O y FeCl2·4H2O con base en un protocolo validado.",
 
     "Pesar las sales de hierro utilizando una balanza analítica.",
 
@@ -689,7 +692,7 @@ pasos = [
 
     "Agregar lentamente el agente precipitante mientras se controla el pH.",
 
-    "Mantener la agitación durante el tiempo de envejecimiento indicado en el protocolo.",
+    "Mantener la agitación durante el tiempo de envejecimiento establecido en el protocolo.",
 
     "Separar las nanopartículas mediante centrifugación o filtración al vacío.",
 
@@ -697,13 +700,13 @@ pasos = [
 
     "Realizar un lavado opcional con etanol si el protocolo lo indica.",
 
-    "Secar el sólido en una estufa o bajo vacío utilizando condiciones validadas.",
+    "Secar el sólido utilizando una estufa o un horno de vacío.",
 
-    "Guardar la muestra en un desecador y registrar todas las condiciones experimentales.",
+    "Guardar la muestra en un desecador y registrar las condiciones experimentales.",
 
     "Caracterizar el material mediante difracción de rayos X, microscopía y magnetometría.",
 
-    "Comparar las propiedades experimentales con las propiedades objetivo."
+    "Comparar las propiedades medidas con las propiedades objetivo."
 ]
 
 for numero, paso in enumerate(pasos, start=1):
@@ -713,8 +716,7 @@ st.warning(
     """
     Las cantidades exactas, concentraciones, temperaturas y tiempos deben
     tomarse de un protocolo validado en la literatura y aprobado por el
-    laboratorio. Esta aplicación no garantiza biocompatibilidad, seguridad
-    clínica ni desempeño terapéutico.
+    laboratorio. Esta aplicación es una demostración educativa.
     """
 )
 
