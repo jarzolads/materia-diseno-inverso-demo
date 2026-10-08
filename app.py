@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -10,37 +11,110 @@ import plotly.express as px
 # ============================================================
 
 st.set_page_config(
-    page_title="Matéria: Agente para diseño inverso",
+    page_title="Matéria | Diseño inverso de materiales",
     page_icon="🔬",
     layout="wide"
 )
 
-st.title("Matéria: Agente para el diseño inverso de materiales")
-st.markdown("### Desarrollado por Jesús Arzola")
+# ============================================================
+# ESTILOS
+# ============================================================
+
+st.markdown(
+    """
+    <style>
+    .main-title {
+        color: #0B3D91;
+        font-size: 42px;
+        font-weight: 800;
+        margin-bottom: 0;
+    }
+
+    .subtitle {
+        color: #555555;
+        font-size: 20px;
+        margin-bottom: 20px;
+    }
+
+    .section-title {
+        color: #0B3D91;
+        border-bottom: 2px solid #4EA5D9;
+        padding-bottom: 6px;
+        margin-top: 28px;
+    }
+
+    .metric-card {
+        background-color: #F2F7FB;
+        border-left: 5px solid #0B3D91;
+        padding: 16px;
+        border-radius: 10px;
+        min-height: 120px;
+        text-align: center;
+    }
+
+    .metric-card h4 {
+        color: #456;
+        margin-bottom: 8px;
+    }
+
+    .metric-card h2 {
+        color: #0B3D91;
+    }
+
+    .agent-card {
+        background-color: #F8FAFC;
+        border: 1px solid #D8E2EC;
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 15px;
+    }
+
+    .warning-card {
+        background-color: #FFF8E7;
+        border-left: 5px solid #E7A900;
+        padding: 15px;
+        border-radius: 8px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# ============================================================
+# ENCABEZADO
+# ============================================================
+
+st.markdown(
+    '<div class="main-title">Matéria: Agente para el diseño inverso de materiales</div>',
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    '<div class="subtitle">Desarrollado por Jesús Arzola</div>',
+    unsafe_allow_html=True
+)
 
 st.info(
     """
     **¿Para qué sirve Matéria?**
 
-    Matéria es un agente educativo para las primeras etapas del diseño inverso
-    de materiales. El usuario define las propiedades que desea y la aplicación
-    busca materiales candidatos, compara sus características y propone una
-    estrategia preliminar de síntesis.
+    Matéria es un agente de inteligencia artificial que permite buscar
+    materiales a partir de las propiedades que se desean obtener.
 
-    El agente puede ayudar a responder preguntas como:
-
-    - ¿Qué materiales tienen una magnetización elevada?
-    - ¿Qué candidatos son relativamente estables?
-    - ¿Qué composición podría ser interesante para una aplicación?
-    - ¿Qué reactivos y equipo se necesitarían para explorar su síntesis?
-    - ¿Qué caracterizaciones deberían realizarse?
-
-    Matéria no sustituye la validación experimental, la revisión bibliográfica,
-    la caracterización ni la evaluación de seguridad.
+    El usuario puede escribir un objetivo científico mediante un prompt o
+    seleccionar valores numéricos. El agente interpreta la solicitud, consulta
+    Materials Project, filtra los candidatos y genera una interpretación
+    científica preliminar.
     """
 )
 
-st.caption("Demostración educativa con Gemini y Materials Project")
+st.caption(
+    "La aplicación consulta datos científicos; no utiliza una lista fija de materiales."
+)
+
+# ============================================================
+# CLAVES
+# ============================================================
 
 MP_API_KEY = st.secrets.get(
     "MP_API_KEY",
@@ -58,212 +132,170 @@ GEMINI_MODEL = st.secrets.get(
 )
 
 # ============================================================
-# TIPOS DE MATERIALES
+# CONCEPTOS
 # ============================================================
-
-st.header("1. ¿Para qué tipos de materiales funciona?")
 
 st.markdown(
-    """
-    Matéria funciona principalmente con materiales sólidos inorgánicos que
-    pueden representarse mediante una composición química y una estructura
-    cristalina.
-
-    Es especialmente útil para explorar:
-    """
+    '<div class="section-title">Conceptos científicos</div>',
+    unsafe_allow_html=True
 )
-
-materiales = pd.DataFrame([
-    {
-        "Tipo de material": "Óxidos metálicos",
-        "Ejemplos": "Fe3O4, Fe2O3, TiO2, ZnO",
-        "Aplicaciones": "Magnetismo, catálisis, sensores y energía"
-    },
-    {
-        "Tipo de material": "Ferritas",
-        "Ejemplos": "CoFe2O4, NiFe2O4, MnFe2O4",
-        "Aplicaciones": "Magnetismo, hipertermia y separación magnética"
-    },
-    {
-        "Tipo de material": "Aleaciones metálicas",
-        "Ejemplos": "Fe-Ni, Fe-Co, Cu-Zn",
-        "Aplicaciones": "Propiedades mecánicas, magnéticas y térmicas"
-    },
-    {
-        "Tipo de material": "Materiales cerámicos",
-        "Ejemplos": "Al2O3, ZrO2, BaTiO3",
-        "Aplicaciones": "Aislamiento, sensores y materiales dieléctricos"
-    },
-    {
-        "Tipo de material": "Materiales para energía",
-        "Ejemplos": "Materiales para baterías y electrodos",
-        "Aplicaciones": "Almacenamiento y conversión de energía"
-    },
-    {
-        "Tipo de material": "Materiales bidimensionales",
-        "Ejemplos": "Grafeno, MoS2 y otros dicalcogenuros",
-        "Aplicaciones": "Electrónica, sensores y catálisis"
-    }
-])
-
-st.dataframe(
-    materiales,
-    use_container_width=True,
-    hide_index=True
-)
-
-st.warning(
-    """
-    Esta demostración está configurada para materiales magnéticos basados en
-    hierro y óxidos metálicos. Para utilizar polímeros, proteínas, moléculas
-    orgánicas o materiales compuestos sería necesario modificar las propiedades,
-    la base de datos y la estrategia de síntesis.
-    """
-)
-
-# ============================================================
-# CONCEPTOS CIENTÍFICOS
-# ============================================================
-
-st.header("2. Conceptos científicos")
 
 with st.expander("Magnetización"):
-    st.markdown(
+    st.write(
         """
-        La magnetización es el momento magnético por unidad de volumen de un
-        material. Indica qué tan intensamente responde frente a un campo
+        La magnetización es el momento magnético por unidad de volumen.
+        Describe la intensidad con la que un material responde frente a un campo
         magnético externo.
 
-        Para hipertermia magnética puede ser una propiedad importante porque
-        influye en la respuesta ante un campo magnético alterno. Sin embargo,
-        también deben estudiarse el tamaño de partícula, la estabilidad, la
-        dispersión, la toxicidad y la biocompatibilidad.
+        En hipertermia magnética puede relacionarse con la respuesta ante un
+        campo alterno, aunque también deben evaluarse el tamaño de partícula,
+        la estabilidad coloidal, la toxicidad y la biocompatibilidad.
         """
     )
 
 with st.expander("Energía sobre el envolvente"):
-    st.markdown(
+    st.write(
         """
-        La energía sobre el envolvente, conocida como `energy above hull` o
-        `E_hull`, es un indicador computacional de estabilidad termodinámica.
+        La energía sobre el envolvente, o `energy above hull`, es un indicador
+        computacional de estabilidad termodinámica.
 
-        Un valor cercano a cero indica que el material está cerca de la
-        envolvente de estabilidad. Un valor mayor puede indicar que existen
-        otras fases más estables.
+        Un valor cercano a cero indica que el material se encuentra cerca de la
+        envolvente de estabilidad. No garantiza por sí solo que el material
+        pueda sintetizarse.
         """
     )
 
 with st.expander("Densidad"):
-    st.markdown(
+    st.write(
         """
         La densidad es la masa por unidad de volumen. Puede influir en la
         sedimentación, separación magnética y preparación de suspensiones.
         """
     )
 
-with st.expander("Ordenamiento magnético"):
-    st.markdown(
-        """
-        Describe cómo se organizan los momentos magnéticos dentro del sólido.
-
-        Algunos tipos son ferromagnético, antiferromagnético, ferrimagnético y
-        paramagnético.
-        """
-    )
-
 with st.expander("Diseño inverso"):
-    st.markdown(
+    st.write(
         """
         En el diseño directo se parte de una composición y se calculan sus
         propiedades.
 
         En el diseño inverso se parte de las propiedades deseadas y se buscan
-        composiciones que potencialmente puedan cumplirlas.
+        composiciones que puedan cumplirlas.
 
-        El flujo de trabajo es:
+        La aplicación sigue este flujo:
 
-        1. Definir propiedades objetivo.
-        2. Consultar una base de datos.
-        3. Filtrar materiales candidatos.
-        4. Comparar los resultados.
-        5. Proponer una síntesis preliminar.
-        6. Validar experimentalmente.
+        1. El usuario define un objetivo.
+        2. Gemini interpreta el prompt.
+        3. Materials Project proporciona candidatos.
+        4. La aplicación filtra los resultados.
+        5. Gemini interpreta los candidatos.
+        6. Se propone una estrategia experimental preliminar.
         """
     )
 
-st.warning(
-    """
-    Materials Project proporciona principalmente propiedades calculadas para
-    estructuras cristalinas. Los resultados no garantizan que una nanopartícula
-    sintetizada tenga exactamente las mismas propiedades.
-    """
-)
-
 # ============================================================
-# DATOS DE DEMOSTRACIÓN
+# FUNCIONES AUXILIARES
 # ============================================================
 
-DATOS_DEMO = pd.DataFrame([
-    {
-        "material_id": "mp-demo-001",
-        "formula_pretty": "Fe3O4",
-        "chemsys": "Fe-O",
-        "density": 5.18,
-        "energy_above_hull": 0.002,
-        "ordering": "Ferrimagnético",
-        "total_magnetization_normalized_vol": 480.0,
-        "symmetry": "Fd-3m"
-    },
-    {
-        "material_id": "mp-demo-002",
-        "formula_pretty": "Fe2O3",
-        "chemsys": "Fe-O",
-        "density": 5.24,
-        "energy_above_hull": 0.015,
-        "ordering": "Antiferromagnético",
-        "total_magnetization_normalized_vol": 25.0,
-        "symmetry": "R-3c"
-    },
-    {
-        "material_id": "mp-demo-003",
-        "formula_pretty": "CoFe2O4",
-        "chemsys": "Co-Fe-O",
-        "density": 5.30,
-        "energy_above_hull": 0.008,
-        "ordering": "Ferrimagnético",
-        "total_magnetization_normalized_vol": 520.0,
-        "symmetry": "Fd-3m"
-    },
-    {
-        "material_id": "mp-demo-004",
-        "formula_pretty": "NiFe2O4",
-        "chemsys": "Fe-Ni-O",
-        "density": 5.35,
-        "energy_above_hull": 0.012,
-        "ordering": "Ferrimagnético",
-        "total_magnetization_normalized_vol": 390.0,
-        "symmetry": "Fd-3m"
-    },
-    {
-        "material_id": "mp-demo-005",
-        "formula_pretty": "MnFe2O4",
-        "chemsys": "Fe-Mn-O",
-        "density": 4.86,
-        "energy_above_hull": 0.021,
-        "ordering": "Ferrimagnético",
-        "total_magnetization_normalized_vol": 430.0,
-        "symmetry": "Fd-3m"
+def limpiar_json(texto):
+    """
+    Extrae un objeto JSON aunque Gemini lo devuelva dentro de markdown.
+    """
+
+    texto = texto.strip()
+    texto = texto.replace("```json", "")
+    texto = texto.replace("```", "")
+    texto = texto.strip()
+
+    inicio = texto.find("{")
+    final = texto.rfind("}")
+
+    if inicio == -1 or final == -1:
+        raise ValueError("Gemini no devolvió un JSON válido.")
+
+    return json.loads(texto[inicio:final + 1])
+
+
+def interpretar_prompt(prompt):
+    """
+    Utiliza Gemini para convertir un prompt científico en filtros numéricos.
+    """
+
+    filtros_defecto = {
+        "magnetizacion_minima": 0.0,
+        "energia_maxima": 0.10,
+        "densidad_maxima": 0.0,
+        "elementos": [],
+        "sistema_quimico": "",
+        "ordenar_por": "energy_above_hull",
+        "objetivo": prompt
     }
-])
 
-# ============================================================
-# FUNCIONES
-# ============================================================
+    if not GEMINI_API_KEY:
+        return filtros_defecto, (
+            "Gemini no está conectado. Se utilizaron los valores manuales."
+        )
 
-def preparar_columnas(datos):
-    resultado = datos.copy()
+    try:
+        from google import genai
 
-    columnas_requeridas = [
+        cliente = genai.Client(
+            api_key=GEMINI_API_KEY
+        )
+
+        instrucciones = f"""
+        Analiza el siguiente objetivo de diseño inverso de materiales:
+
+        {prompt}
+
+        Devuelve exclusivamente un objeto JSON válido con esta estructura:
+
+        {{
+            "magnetizacion_minima": número,
+            "energia_maxima": número,
+            "densidad_maxima": número,
+            "elementos": ["Fe", "O"],
+            "sistema_quimico": "",
+            "ordenar_por": "magnetizacion" o "energy_above_hull",
+            "objetivo": "resumen breve"
+        }}
+
+        Reglas:
+
+        - Si no se especifica magnetización, usa 0.
+        - Si no se especifica energía, usa 0.10.
+        - Si no se especifica densidad, usa 0.
+        - Si se mencionan elementos, escríbelos con símbolos químicos.
+        - No inventes propiedades experimentales.
+        """
+
+        respuesta = cliente.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=instrucciones
+        )
+
+        datos = limpiar_json(respuesta.text)
+
+        for clave, valor in filtros_defecto.items():
+            if clave not in datos:
+                datos[clave] = valor
+
+        return datos, "Gemini interpretó el prompt."
+
+    except Exception as error:
+        return filtros_defecto, (
+            f"No fue posible interpretar el prompt con Gemini: {error}"
+        )
+
+
+def preparar_datos(datos):
+    """
+    Garantiza que las columnas necesarias existan.
+    """
+
+    datos = datos.copy()
+
+    columnas = [
         "material_id",
         "formula_pretty",
         "chemsys",
@@ -274,9 +306,9 @@ def preparar_columnas(datos):
         "symmetry"
     ]
 
-    for columna in columnas_requeridas:
-        if columna not in resultado.columns:
-            resultado[columna] = np.nan
+    for columna in columnas:
+        if columna not in datos.columns:
+            datos[columna] = np.nan
 
     columnas_numericas = [
         "density",
@@ -285,19 +317,26 @@ def preparar_columnas(datos):
     ]
 
     for columna in columnas_numericas:
-        resultado[columna] = pd.to_numeric(
-            resultado[columna],
+        datos[columna] = pd.to_numeric(
+            datos[columna],
             errors="coerce"
         )
 
-    return resultado
+    return datos
 
 
-def cargar_materials_project():
+def consultar_materials_project(
+    elementos,
+    sistema_quimico,
+    limite_resultados
+):
+    """
+    Consulta Materials Project sin utilizar materiales predefinidos.
+    """
+
     if not MP_API_KEY:
-        return (
-            DATOS_DEMO.copy(),
-            "Se están utilizando datos demostrativos."
+        return pd.DataFrame(), (
+            "No se encontró MP_API_KEY en Streamlit Secrets."
         )
 
     try:
@@ -310,19 +349,30 @@ def cargar_materials_project():
             "density",
             "energy_above_hull",
             "ordering",
+            "total_magnetization_normalized_vol",
             "symmetry"
         ]
 
         with MPRester(MP_API_KEY) as mpr:
+
+            argumentos = {
+                "fields": campos,
+                "num_chunks": 1
+            }
+
+            if sistema_quimico.strip():
+                argumentos["chemsys"] = sistema_quimico.strip()
+
+            elif elementos:
+                argumentos["elements"] = elementos
+
             documentos = mpr.materials.summary.search(
-                chemsys="Fe-O",
-                fields=campos,
-                num_chunks=1
+                **argumentos
             )
 
         registros = []
 
-        for doc in documentos:
+        for doc in documentos[:limite_resultados]:
             registros.append({
                 "material_id": str(
                     getattr(doc, "material_id", "")
@@ -342,44 +392,27 @@ def cargar_materials_project():
                 "ordering": str(
                     getattr(doc, "ordering", "No disponible")
                 ),
-                "total_magnetization_normalized_vol": np.nan,
+                "total_magnetization_normalized_vol": getattr(
+                    doc,
+                    "total_magnetization_normalized_vol",
+                    np.nan
+                ),
                 "symmetry": str(
                     getattr(doc, "symmetry", "No disponible")
                 )
             })
 
-        datos = preparar_columnas(
+        datos = preparar_datos(
             pd.DataFrame(registros)
         )
 
-        if datos.empty:
-            return (
-                DATOS_DEMO.copy(),
-                "No se encontraron datos. Se utilizaron datos demostrativos."
-            )
-
-        magnetizacion_disponible = (
-            datos["total_magnetization_normalized_vol"]
-            .notna()
-            .any()
+        return datos, (
+            f"Materials Project devolvió {len(datos)} registros."
         )
 
-        if not magnetizacion_disponible:
-            return (
-                DATOS_DEMO.copy(),
-                """
-                Materials Project no devolvió magnetización para esta consulta.
-                Se utilizaron datos demostrativos para ejecutar el agente.
-                """
-            )
-
-        return datos, "Datos cargados desde Materials Project."
-
     except Exception as error:
-        return (
-            DATOS_DEMO.copy(),
-            "Se utilizaron datos demostrativos. "
-            f"Detalle de la consulta: {error}"
+        return pd.DataFrame(), (
+            f"Error al consultar Materials Project: {error}"
         )
 
 
@@ -387,55 +420,43 @@ def filtrar_materiales(
     datos,
     magnetizacion_minima,
     energia_maxima,
-    densidad_maxima,
-    ordenar_por
+    densidad_maxima
 ):
-    resultado = preparar_columnas(datos)
+    datos = preparar_datos(datos)
 
-    magnetizacion = resultado[
-        "total_magnetization_normalized_vol"
-    ].fillna(0)
-
-    energia = resultado[
-        "energy_above_hull"
-    ].fillna(999)
-
-    densidad = resultado[
-        "density"
-    ].fillna(999)
-
-    resultado = resultado[
-        magnetizacion >= magnetizacion_minima
+    datos = datos[
+        datos["energy_above_hull"].fillna(999)
+        <= energia_maxima
     ]
 
-    resultado = resultado[
-        energia.loc[resultado.index] <= energia_maxima
-    ]
-
-    if densidad_maxima > 0:
-        resultado = resultado[
-            densidad.loc[resultado.index] <= densidad_maxima
+    if magnetizacion_minima > 0:
+        datos = datos[
+            datos["total_magnetization_normalized_vol"].fillna(0)
+            >= magnetizacion_minima
         ]
 
-    if ordenar_por == "Mayor magnetización":
-        resultado = resultado.sort_values(
-            by="total_magnetization_normalized_vol",
-            ascending=False
-        )
-    else:
-        resultado = resultado.sort_values(
-            by="energy_above_hull",
-            ascending=True
-        )
+    if densidad_maxima > 0:
+        datos = datos[
+            datos["density"].fillna(999)
+            <= densidad_maxima
+        ]
 
-    return resultado
+    return datos.sort_values(
+        by="energy_above_hull",
+        ascending=True
+    )
 
 
-def consultar_gemini(consulta, candidatos):
+def interpretar_resultados(prompt, resultados):
+    """
+    Gemini interpreta exclusivamente los materiales devueltos por Materials
+    Project.
+    """
+
     if not GEMINI_API_KEY:
         return (
-            "Gemini no está conectado. La selección se realizó mediante "
-            "los filtros numéricos."
+            "Gemini no está conectado. La tabla muestra directamente los "
+            "resultados filtrados de Materials Project."
         )
 
     try:
@@ -445,423 +466,417 @@ def consultar_gemini(consulta, candidatos):
             api_key=GEMINI_API_KEY
         )
 
-        datos = candidatos.head(10).to_dict(
+        registros = resultados.head(20).to_dict(
             orient="records"
         )
 
-        prompt = f"""
-        Actúa como un agente educativo de diseño inverso de materiales.
+        solicitud = f"""
+        Interpreta estos resultados de Materials Project para el objetivo:
 
-        Solicitud:
-        {consulta}
+        {prompt}
 
-        Candidatos:
-        {json.dumps(datos, ensure_ascii=False, default=str)}
+        Resultados:
+        {json.dumps(registros, ensure_ascii=False, default=str)}
 
-        Responde en español:
+        Responde en español con estas secciones:
 
-        1. Identifica la propiedad prioritaria.
-        2. Explica cuál candidato es más interesante.
-        3. Describe los compromisos entre magnetización, estabilidad y densidad.
-        4. Indica qué información experimental falta.
-        5. Propón una estrategia preliminar de síntesis.
-        6. Indica qué técnicas de caracterización deben utilizarse.
+        1. Interpretación del objetivo.
+        2. Candidatos más interesantes.
+        3. Compromisos entre estabilidad y propiedades.
+        4. Limitaciones de los datos calculados.
+        5. Caracterización experimental recomendada.
+        6. Estrategia preliminar de síntesis.
 
-        No afirmes que el material es automáticamente biocompatible o clínico.
+        No afirmes que los materiales son biocompatibles ni clínicamente seguros.
         """
 
         respuesta = cliente.models.generate_content(
             model=GEMINI_MODEL,
-            contents=prompt
+            contents=solicitud
         )
 
         return respuesta.text
 
     except Exception as error:
-        return f"No fue posible consultar Gemini: {error}"
+        return f"No fue posible interpretar los resultados: {error}"
 
 
 # ============================================================
-# SELECCIÓN DE PROPIEDADES
+# PROMPT DEL USUARIO
 # ============================================================
 
-st.header("3. Define las propiedades objetivo")
+st.markdown(
+    '<div class="section-title">Define tu objetivo de diseño</div>',
+    unsafe_allow_html=True
+)
+
+prompt_usuario = st.text_area(
+    "Escribe una solicitud científica",
+    value=(
+        "Busca materiales magnéticos estables basados en hierro, con alta "
+        "magnetización, para explorar una aplicación de hipertermia."
+    ),
+    height=130,
+    help=(
+        "Puedes escribir la aplicación, los elementos o las propiedades "
+        "deseadas."
+    )
+)
+
+st.markdown("### Parámetros de búsqueda")
 
 columna_1, columna_2, columna_3 = st.columns(3)
 
 with columna_1:
-    magnetizacion_minima = st.number_input(
+    magnetizacion_manual = st.number_input(
         "Magnetización mínima",
         min_value=0.0,
-        max_value=1000.0,
+        max_value=2000.0,
         value=300.0,
         step=10.0
     )
 
 with columna_2:
-    energia_maxima = st.number_input(
-        "Energía sobre el envolvente máxima",
+    energia_manual = st.number_input(
+        "Energía máxima sobre el envolvente",
         min_value=0.0,
-        max_value=1.0,
-        value=0.05,
-        step=0.005,
+        max_value=2.0,
+        value=0.10,
+        step=0.01,
         format="%.3f"
     )
 
 with columna_3:
-    densidad_maxima = st.number_input(
+    densidad_manual = st.number_input(
         "Densidad máxima",
         min_value=0.0,
-        max_value=15.0,
-        value=6.0,
-        step=0.1
+        max_value=20.0,
+        value=0.0,
+        step=0.1,
+        help="Usa 0 para no aplicar filtro de densidad."
     )
 
-ordenar_por = st.selectbox(
-    "Ordenar resultados por",
-    [
-        "Mayor magnetización",
-        "Menor energía sobre el envolvente"
-    ]
+st.markdown("### Opciones de consulta")
+
+columna_4, columna_5 = st.columns(2)
+
+with columna_4:
+    elementos_texto = st.text_input(
+        "Elementos opcionales",
+        value="Fe, O",
+        help="Ejemplo: Fe, O o Li, Co, O"
+    )
+
+with columna_5:
+    sistema_quimico = st.text_input(
+        "Sistema químico opcional",
+        value="",
+        help="Ejemplo: Fe-O. Déjalo vacío para usar elementos."
+    )
+
+limite_resultados = st.slider(
+    "Número máximo de resultados consultados",
+    min_value=10,
+    max_value=500,
+    value=100,
+    step=10
 )
 
-consulta_usuario = st.text_area(
-    "Describe el objetivo del material",
-    value=(
-        "Busco un material magnético estable con magnetización elevada "
-        "para explorar hipertermia magnética."
-    ),
-    height=100
+usar_prompt = st.checkbox(
+    "Permitir que Gemini interprete automáticamente el prompt",
+    value=True
 )
 
 # ============================================================
-# BOTONES
+# EJECUCIÓN
 # ============================================================
 
-columna_a, columna_b = st.columns(2)
+buscar = st.button(
+    "🔎 Buscar materiales realmente en Materials Project",
+    type="primary",
+    use_container_width=True
+)
 
-with columna_a:
-    boton_cargar = st.button(
-        "Cargar datos de Materials Project",
-        use_container_width=True
-    )
+if buscar:
 
-with columna_b:
-    boton_ejemplo = st.button(
-        "Probar ejemplo",
-        use_container_width=True
-    )
+    if not MP_API_KEY:
+        st.error(
+            """
+            No se encontró `MP_API_KEY`.
 
-if "datos" not in st.session_state:
-    st.session_state.datos = DATOS_DEMO.copy()
+            En Streamlit Cloud ve a:
 
-if boton_cargar or boton_ejemplo:
-    with st.spinner("Consultando materiales..."):
-        datos, mensaje = cargar_materials_project()
-        st.session_state.datos = preparar_columnas(datos)
+            `Manage app → Settings → Secrets`
+
+            y agrega:
+
+            `MP_API_KEY = "tu_clave_de_materials_project"`
+            """
+        )
+        st.stop()
+
+    if usar_prompt:
+        filtros, mensaje_gemini = interpretar_prompt(
+            prompt_usuario
+        )
+        st.info(mensaje_gemini)
+
+        magnetizacion_busqueda = float(
+            filtros.get(
+                "magnetizacion_minima",
+                magnetizacion_manual
+            )
+        )
+
+        energia_busqueda = float(
+            filtros.get(
+                "energia_maxima",
+                energia_manual
+            )
+        )
+
+        densidad_busqueda = float(
+            filtros.get(
+                "densidad_maxima",
+                densidad_manual
+            )
+        )
+
+        elementos_prompt = filtros.get(
+            "elementos",
+            []
+        )
+
+        sistema_prompt = filtros.get(
+            "sistema_quimico",
+            ""
+        )
+
+        if elementos_prompt:
+            elementos = elementos_prompt
+        else:
+            elementos = [
+                elemento.strip()
+                for elemento in elementos_texto.split(",")
+                if elemento.strip()
+            ]
+
+        if sistema_prompt:
+            sistema_consulta = sistema_prompt
+        else:
+            sistema_consulta = sistema_quimico
+
+    else:
+        magnetizacion_busqueda = magnetizacion_manual
+        energia_busqueda = energia_manual
+        densidad_busqueda = densidad_manual
+
+        elementos = [
+            elemento.strip()
+            for elemento in elementos_texto.split(",")
+            if elemento.strip()
+        ]
+
+        sistema_consulta = sistema_quimico
+
+    with st.spinner(
+        "Consultando directamente Materials Project..."
+    ):
+        datos, mensaje = consultar_materials_project(
+            elementos=elementos,
+            sistema_quimico=sistema_consulta,
+            limite_resultados=limite_resultados
+        )
 
     st.success(mensaje)
 
-# ============================================================
-# RESULTADOS
-# ============================================================
-
-if boton_cargar or boton_ejemplo:
-
-    resultados = filtrar_materiales(
-        st.session_state.datos,
-        magnetizacion_minima,
-        energia_maxima,
-        densidad_maxima,
-        ordenar_por
-    )
-
-    st.header("4. Resultados del diseño inverso")
-
-    if resultados.empty:
+    if datos.empty:
         st.error(
             """
-            No se encontraron materiales con estos criterios.
+            No se obtuvieron registros.
 
-            Prueba reduciendo la magnetización mínima o aumentando la energía
-            sobre el envolvente máxima.
+            Revisa que:
+
+            - `MP_API_KEY` esté correctamente configurada.
+            - El sistema químico exista.
+            - Los elementos estén escritos con símbolos químicos.
+            - La consulta no sea demasiado restrictiva.
             """
         )
-    else:
-        st.success(
-            f"Se encontraron {len(resultados)} materiales candidatos."
+        st.stop()
+
+    resultados = filtrar_materiales(
+        datos,
+        magnetizacion_busqueda,
+        energia_busqueda,
+        densidad_busqueda
+    )
+
+    st.markdown(
+        '<div class="section-title">Resultados del diseño inverso</div>',
+        unsafe_allow_html=True
+    )
+
+    if resultados.empty:
+        st.warning(
+            """
+            Materials Project sí devolvió materiales, pero ninguno cumple
+            simultáneamente los valores seleccionados.
+
+            Prueba aumentando la energía máxima, reduciendo la magnetización
+            mínima o eliminando el filtro de densidad.
+            """
         )
 
-        columnas_mostrar = [
-            "material_id",
-            "formula_pretty",
-            "chemsys",
-            "density",
-            "energy_above_hull",
-            "ordering",
-            "total_magnetization_normalized_vol",
-            "symmetry"
-        ]
+        st.write(
+            "Número de registros antes del filtrado:",
+            len(datos)
+        )
+
+    else:
+        tarjeta_1, tarjeta_2, tarjeta_3, tarjeta_4 = st.columns(4)
+
+        with tarjeta_1:
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <h4>Candidatos</h4>
+                    <h2>{len(resultados)}</h2>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        with tarjeta_2:
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <h4>Menor E_hull</h4>
+                    <h2>{resultados["energy_above_hull"].min():.4f}</h2>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        with tarjeta_3:
+            magnetizaciones = resultados[
+                "total_magnetization_normalized_vol"
+            ].dropna()
+
+            if len(magnetizaciones) > 0:
+                valor_magnetizacion = f"{magnetizaciones.max():.2f}"
+            else:
+                valor_magnetizacion = "N/D"
+
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <h4>Mayor magnetización</h4>
+                    <h2>{valor_magnetizacion}</h2>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        with tarjeta_4:
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <h4>Sistemas químicos</h4>
+                    <h2>{resultados["chemsys"].nunique()}</h2>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
         st.dataframe(
-            resultados[columnas_mostrar],
+            resultados,
             use_container_width=True,
             hide_index=True
         )
 
-        grafica = px.scatter(
-            resultados,
-            x="energy_above_hull",
-            y="total_magnetization_normalized_vol",
-            size="density",
-            color="ordering",
-            hover_name="formula_pretty",
-            hover_data=["material_id", "chemsys"],
-            labels={
-                "energy_above_hull": "Energía sobre el envolvente",
-                "total_magnetization_normalized_vol":
-                    "Magnetización normalizada por volumen",
-                "ordering": "Ordenamiento magnético",
-                "density": "Densidad"
-            },
-            title="Mapa de candidatos"
+        columnas_grafica = [
+            "energy_above_hull",
+            "total_magnetization_normalized_vol",
+            "formula_pretty",
+            "density",
+            "chemsys"
+        ]
+
+        grafica_datos = resultados[
+            columnas_grafica
+        ].dropna(
+            subset=[
+                "energy_above_hull",
+                "total_magnetization_normalized_vol"
+            ]
         )
 
-        st.plotly_chart(
-            grafica,
-            use_container_width=True
+        if not grafica_datos.empty:
+            grafica = px.scatter(
+                grafica_datos,
+                x="energy_above_hull",
+                y="total_magnetization_normalized_vol",
+                size="density",
+                color="chemsys",
+                hover_name="formula_pretty",
+                labels={
+                    "energy_above_hull":
+                        "Energía sobre el envolvente",
+                    "total_magnetization_normalized_vol":
+                        "Magnetización normalizada por volumen",
+                    "density":
+                        "Densidad",
+                    "chemsys":
+                        "Sistema químico"
+                },
+                title="Mapa de candidatos encontrados"
+            )
+
+            grafica.update_layout(
+                template="plotly_white",
+                height=550
+            )
+
+            st.plotly_chart(
+                grafica,
+                use_container_width=True
+            )
+
+        st.markdown(
+            '<div class="section-title">Interpretación de Gemini</div>',
+            unsafe_allow_html=True
         )
 
-        st.header("5. Interpretación del agente")
-
-        with st.spinner("Gemini está interpretando los resultados..."):
-            explicacion = consultar_gemini(
-                consulta_usuario,
+        with st.spinner(
+            "Gemini está interpretando los candidatos..."
+        ):
+            interpretacion = interpretar_resultados(
+                prompt_usuario,
                 resultados
             )
 
-        st.markdown(explicacion)
+        st.markdown(
+            f"""
+            <div class="agent-card">
+            {interpretacion}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 # ============================================================
-# SÍNTESIS
+# NOTA FINAL
 # ============================================================
 
-st.header("6. Estrategia preliminar de síntesis")
-
-st.write(
+st.markdown(
     """
-    Como ejemplo se propone la síntesis de magnetita (Fe3O4) mediante
-    coprecipitación de sales de hierro.
-    """
-)
-
-st.subheader("Reactivos químicos")
-
-reactivos = pd.DataFrame([
-    {
-        "Reactivo": "FeCl3·6H2O",
-        "Función": "Fuente de Fe(III)"
-    },
-    {
-        "Reactivo": "FeCl2·4H2O",
-        "Función": "Fuente de Fe(II)"
-    },
-    {
-        "Reactivo": "NH4OH o NaOH",
-        "Función": "Agente precipitante"
-    },
-    {
-        "Reactivo": "Agua desionizada",
-        "Función": "Disolución y lavado"
-    },
-    {
-        "Reactivo": "Etanol",
-        "Función": "Lavado opcional"
-    }
-])
-
-st.dataframe(
-    reactivos,
-    use_container_width=True,
-    hide_index=True
-)
-
-st.subheader("Materiales y equipo")
-
-equipo = pd.DataFrame([
-    {
-        "Equipo": "Balanza analítica",
-        "Uso": "Pesaje de precursores"
-    },
-    {
-        "Equipo": "Matraces aforados",
-        "Uso": "Preparación de soluciones"
-    },
-    {
-        "Equipo": "Vasos de precipitados",
-        "Uso": "Mezcla de reactivos"
-    },
-    {
-        "Equipo": "Parrilla con agitación magnética",
-        "Uso": "Agitación y temperatura"
-    },
-    {
-        "Equipo": "Barras magnéticas de PTFE",
-        "Uso": "Agitación"
-    },
-    {
-        "Equipo": "pH-metro",
-        "Uso": "Control del pH"
-    },
-    {
-        "Equipo": "Jeringa o bureta",
-        "Uso": "Adición controlada de la base"
-    },
-    {
-        "Equipo": "Termómetro",
-        "Uso": "Control de temperatura"
-    },
-    {
-        "Equipo": "Centrífuga o filtración al vacío",
-        "Uso": "Separación del sólido"
-    },
-    {
-        "Equipo": "Papel filtro y embudo Büchner",
-        "Uso": "Recuperación del material"
-    },
-    {
-        "Equipo": "Estufa u horno de vacío",
-        "Uso": "Secado"
-    },
-    {
-        "Equipo": "Desecador",
-        "Uso": "Almacenamiento"
-    },
-    {
-        "Equipo": "Campana de extracción",
-        "Uso": "Seguridad química"
-    },
-    {
-        "Equipo": "Bata, guantes y gafas",
-        "Uso": "Protección personal"
-    }
-])
-
-st.dataframe(
-    equipo,
-    use_container_width=True,
-    hide_index=True
-)
-
-st.subheader("Procedimiento paso a paso")
-
-pasos = [
-    "Revisar las hojas de seguridad y preparar el área de trabajo con bata, guantes, gafas y campana de extracción.",
-
-    "Definir la escala de síntesis y calcular las cantidades de FeCl3·6H2O y FeCl2·4H2O con base en un protocolo validado.",
-
-    "Pesar las sales de hierro utilizando una balanza analítica.",
-
-    "Disolver por separado los precursores en agua desionizada.",
-
-    "Preparar la solución de NH4OH o NaOH en un recipiente independiente.",
-
-    "Colocar la solución de hierro bajo agitación magnética.",
-
-    "Agregar lentamente el agente precipitante mientras se controla el pH.",
-
-    "Mantener la agitación durante el tiempo de envejecimiento establecido en el protocolo.",
-
-    "Separar las nanopartículas mediante centrifugación o filtración al vacío.",
-
-    "Lavar el sólido varias veces con agua desionizada.",
-
-    "Realizar un lavado opcional con etanol si el protocolo lo indica.",
-
-    "Secar el sólido utilizando una estufa o un horno de vacío.",
-
-    "Guardar la muestra en un desecador y registrar las condiciones experimentales.",
-
-    "Caracterizar el material mediante difracción de rayos X, microscopía y magnetometría.",
-
-    "Comparar las propiedades medidas con las propiedades objetivo."
-]
-
-for numero, paso in enumerate(pasos, start=1):
-    st.markdown(f"**Paso {numero}.** {paso}")
-
-st.warning(
-    """
-    Las cantidades exactas, concentraciones, temperaturas y tiempos deben
-    tomarse de un protocolo validado en la literatura y aprobado por el
-    laboratorio. Esta aplicación es una demostración educativa.
-    """
-)
-
-# ============================================================
-# COSTOS
-# ============================================================
-
-st.header("7. Costo preliminar")
-
-costos = pd.DataFrame([
-    {
-        "Material": "FeCl3·6H2O",
-        "Cantidad_g": 10,
-        "Precio_paquete_MXN": 450,
-        "Paquete_g": 100
-    },
-    {
-        "Material": "FeCl2·4H2O",
-        "Cantidad_g": 10,
-        "Precio_paquete_MXN": 650,
-        "Paquete_g": 100
-    },
-    {
-        "Material": "NH4OH",
-        "Cantidad_g": 50,
-        "Precio_paquete_MXN": 300,
-        "Paquete_g": 500
-    },
-    {
-        "Material": "Agua desionizada",
-        "Cantidad_g": 500,
-        "Precio_paquete_MXN": 80,
-        "Paquete_g": 5000
-    },
-    {
-        "Material": "Etanol",
-        "Cantidad_g": 100,
-        "Precio_paquete_MXN": 180,
-        "Paquete_g": 1000
-    },
-    {
-        "Material": "Filtros y consumibles",
-        "Cantidad_g": 1,
-        "Precio_paquete_MXN": 250,
-        "Paquete_g": 1
-    }
-])
-
-costos["Costo_estimado_MXN"] = (
-    costos["Cantidad_g"]
-    / costos["Paquete_g"]
-    * costos["Precio_paquete_MXN"]
-)
-
-st.dataframe(
-    costos,
-    use_container_width=True,
-    hide_index=True
-)
-
-costo_total = costos["Costo_estimado_MXN"].sum()
-
-st.metric(
-    "Costo preliminar",
-    f"${costo_total:,.2f} MXN"
-)
-
-st.caption(
-    "Los precios son ilustrativos y deben sustituirse por cotizaciones reales."
+    <div class="warning-card">
+    <b>Importante:</b> los candidatos obtenidos son materiales computacionales
+    identificados mediante criterios de búsqueda. La síntesis, la estabilidad
+    de nanopartículas, la toxicidad y el desempeño biomédico deben validarse
+    experimentalmente.
+    </div>
+    """,
+    unsafe_allow_html=True
 )
