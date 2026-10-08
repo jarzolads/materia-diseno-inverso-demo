@@ -726,7 +726,7 @@ async def comando_start(
     context: ContextTypes.DEFAULT_TYPE
 ):
     mensaje = """
-Hola. Soy Matéria, un agente para el diseño inverso y generativo de materiales.
+Hola. Soy Materia, un agente para el diseño inverso y generativo de materiales.
 
 Puedes utilizar:
 
