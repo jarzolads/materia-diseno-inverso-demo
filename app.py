@@ -11,7 +11,7 @@ import plotly.express as px
 # ============================================================
 
 st.set_page_config(
-    page_title="Matéria | Diseño inverso de materiales",
+    page_title="Materia | Cribado y diseño inverso de materiales",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="expanded"
