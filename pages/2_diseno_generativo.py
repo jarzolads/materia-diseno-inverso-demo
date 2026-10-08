@@ -142,7 +142,7 @@ st.markdown(
 # ============================================================
 
 st.markdown(
-    '<div class="title">Matéria: Diseño generativo de materiales</div>',
+    '<div class="title">Materia: Diseño generativo de materiales</div>',
     unsafe_allow_html=True
 )
 
