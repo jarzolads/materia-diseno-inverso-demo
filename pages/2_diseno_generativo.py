@@ -1,15 +1,16 @@
 import os
 import json
+import time
 import numpy as np
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-import time
 
 from pymatgen.core import Composition, Element
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split 
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, r2_score
+
 
 # ============================================================
 # CONFIGURACIÓN
@@ -27,6 +28,11 @@ st.markdown(
     .stApp {
         background-color: #FFFFFF;
         color: #172B4D;
+    }
+
+    [data-testid="stSidebar"],
+    [data-testid="stHeader"] {
+        background-color: #F5F9FC;
     }
 
     .title {
@@ -86,10 +92,47 @@ st.markdown(
     .metric h2 {
         color: #124E78 !important;
     }
+
+    .agent-box {
+        background-color: #F8FAFC;
+        border: 1px solid #C8D6E5;
+        color: #172B4D !important;
+        padding: 20px;
+        border-radius: 8px;
+        line-height: 1.6;
+    }
+
+    .agent-box table {
+        width: 100% !important;
+        table-layout: fixed;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+
+    .agent-box th,
+    .agent-box td {
+        padding: 6px 8px !important;
+        text-align: left;
+        vertical-align: top;
+        white-space: normal !important;
+        word-wrap: break-word;
+        border: 1px solid #D5E0E8;
+    }
+
+    .agent-box th {
+        background-color: #EAF5FB;
+        color: #124E78;
+    }
+
+    .agent-box td {
+        background-color: #FFFFFF;
+        color: #172B4D;
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
+
 
 # ============================================================
 # ENCABEZADO
@@ -101,7 +144,7 @@ st.markdown(
 )
 
 st.markdown(
-    '<div class="subtitle">Segunda pestaña | Desarrollado por Jesús Arzola</div>',
+    '<div class="subtitle">Segunda página | Desarrollado por Jesús Arzola</div>',
     unsafe_allow_html=True
 )
 
@@ -109,19 +152,19 @@ st.markdown(
     """
     <div class="info-box">
     Esta sección utiliza aprendizaje automático para proponer formulaciones
-    hipotéticas a partir de materiales conocidos.
+    hipotéticas a partir de materiales conocidos de Materials Project.
 
-    El modelo aprende relaciones aproximadas entre composición química,
-    densidad y energía sobre el envolvente. Después explora nuevas
-    combinaciones químicas y las ordena según los objetivos seleccionados.
+    El modelo aprende relaciones aproximadas entre composición química, densidad
+    y energía sobre el envolvente. Después explora nuevas combinaciones dentro
+    de diferentes familias de materiales.
 
-    Los candidatos generados no deben considerarse materiales confirmados.
-    Deben validarse con cálculos de mayor nivel y posteriormente mediante
-    experimentación.
+    Las formulaciones generadas no son materiales confirmados. Deben validarse
+    con cálculos adicionales, revisión bibliográfica y experimentación.
     </div>
     """,
     unsafe_allow_html=True
 )
+
 
 # ============================================================
 # CLAVES
@@ -142,8 +185,75 @@ GEMINI_MODEL = st.secrets.get(
     os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 )
 
+
 # ============================================================
-# FUNCIONES QUÍMICAS
+# FAMILIAS DE MATERIALES
+# ============================================================
+
+FAMILIAS = {
+    "Óxidos metálicos": {
+        "sistemas": [
+            "Fe-O",
+            "Co-O",
+            "Ni-O",
+            "Mn-O",
+            "Ti-O",
+            "Zn-O",
+            "Al-O",
+            "Zr-O"
+        ],
+        "plantilla": "oxido"
+    },
+
+    "Ferritas": {
+        "sistemas": [
+            "Fe-Co-O",
+            "Fe-Ni-O",
+            "Fe-Mn-O",
+            "Fe-Zn-O",
+            "Fe-Cu-O"
+        ],
+        "plantilla": "ferrita"
+    },
+
+    "Aleaciones magnéticas": {
+        "sistemas": [
+            "Fe-Co",
+            "Fe-Ni",
+            "Co-Ni",
+            "Fe-Mn",
+            "Co-Mn"
+        ],
+        "plantilla": "aleacion"
+    },
+
+    "Materiales para baterías": {
+        "sistemas": [
+            "Li-Fe-O",
+            "Li-Co-O",
+            "Li-Ni-O",
+            "Li-Mn-O",
+            "Na-Fe-O",
+            "Na-Mn-O"
+        ],
+        "plantilla": "bateria"
+    },
+
+    "Cerámicos": {
+        "sistemas": [
+            "Ba-Ti-O",
+            "Sr-Ti-O",
+            "Al-O",
+            "Zr-O",
+            "Ca-Ti-O"
+        ],
+        "plantilla": "ceramico"
+    }
+}
+
+
+# ============================================================
+# FUNCIONES
 # ============================================================
 
 def valor_elemento(elemento, propiedad, defecto=0.0):
@@ -159,14 +269,10 @@ def valor_elemento(elemento, propiedad, defecto=0.0):
 
 
 def caracteristicas_composicion(formula):
-    """
-    Convierte una fórmula química en descriptores numéricos.
-    """
-
     try:
         composicion = Composition(formula)
-
         elementos = composicion.elements
+
         cantidades = np.array([
             float(composicion[elemento])
             for elemento in elementos
@@ -175,22 +281,22 @@ def caracteristicas_composicion(formula):
         fracciones = cantidades / cantidades.sum()
 
         numeros_atomicos = np.array([
-            valor_elemento(elemento, "Z", 0)
+            valor_elemento(elemento, "Z")
             for elemento in elementos
         ])
 
         masas = np.array([
-            valor_elemento(elemento, "atomic_mass", 0)
+            valor_elemento(elemento, "atomic_mass")
             for elemento in elementos
         ])
 
         electronegatividades = np.array([
-            valor_elemento(elemento, "X", 0)
+            valor_elemento(elemento, "X")
             for elemento in elementos
         ])
 
         radios = np.array([
-            valor_elemento(elemento, "atomic_radius", 0)
+            valor_elemento(elemento, "atomic_radius")
             for elemento in elementos
         ])
 
@@ -250,7 +356,7 @@ def preparar_dataset(documentos):
     return pd.DataFrame(registros)
 
 
-def consultar_dataset_mp(maximo):
+def consultar_dataset_mp(sistemas, maximo):
     if not MP_API_KEY:
         return pd.DataFrame(), (
             "No se encontró MP_API_KEY."
@@ -266,19 +372,44 @@ def consultar_dataset_mp(maximo):
             "energy_above_hull"
         ]
 
+        documentos_totales = []
+        ids_obtenidos = set()
+
         with MPRester(MP_API_KEY) as mpr:
-            documentos = mpr.materials.summary.search(
-                elements=["Fe", "O"],
-                fields=campos,
-                num_chunks=1
-            )
+
+            for sistema in sistemas:
+                try:
+                    documentos = mpr.materials.summary.search(
+                        chemsys=sistema,
+                        fields=campos,
+                        num_chunks=1
+                    )
+
+                    for documento in documentos:
+                        material_id = str(
+                            getattr(documento, "material_id", "")
+                        )
+
+                        if material_id not in ids_obtenidos:
+                            documentos_totales.append(documento)
+                            ids_obtenidos.add(material_id)
+
+                        if len(documentos_totales) >= maximo:
+                            break
+
+                except Exception:
+                    continue
+
+                if len(documentos_totales) >= maximo:
+                    break
 
         datos = preparar_dataset(
-            documentos[:maximo]
+            documentos_totales[:maximo]
         )
 
         return datos, (
-            f"Se obtuvieron {len(datos)} materiales para entrenar el modelo."
+            f"Se obtuvieron {len(datos)} materiales de "
+            f"{len(sistemas)} sistemas químicos."
         )
 
     except Exception as error:
@@ -316,7 +447,7 @@ def entrenar_modelos(datos):
         datos["features"].tolist()
     )
 
-    resultados = {}
+    modelos = {}
 
     x_train, x_test, y_train, y_test = train_test_split(
         matriz_x,
@@ -335,18 +466,18 @@ def entrenar_modelos(datos):
         y_train
     )
 
-    predicciones_densidad = modelo_densidad.predict(
+    predicciones = modelo_densidad.predict(
         x_test
     )
 
-    resultados["modelo_densidad"] = modelo_densidad
-    resultados["mae_densidad"] = mean_absolute_error(
+    modelos["modelo_densidad"] = modelo_densidad
+    modelos["mae_densidad"] = mean_absolute_error(
         y_test,
-        predicciones_densidad
+        predicciones
     )
-    resultados["r2_densidad"] = r2_score(
+    modelos["r2_densidad"] = r2_score(
         y_test,
-        predicciones_densidad
+        predicciones
     )
 
     x_train, x_test, y_train, y_test = train_test_split(
@@ -366,41 +497,37 @@ def entrenar_modelos(datos):
         y_train
     )
 
-    predicciones_estabilidad = modelo_estabilidad.predict(
+    predicciones = modelo_estabilidad.predict(
         x_test
     )
 
-    resultados["modelo_estabilidad"] = modelo_estabilidad
-    resultados["mae_estabilidad"] = mean_absolute_error(
+    modelos["modelo_estabilidad"] = modelo_estabilidad
+    modelos["mae_estabilidad"] = mean_absolute_error(
         y_test,
-        predicciones_estabilidad
+        predicciones
     )
-    resultados["r2_estabilidad"] = r2_score(
+    modelos["r2_estabilidad"] = r2_score(
         y_test,
-        predicciones_estabilidad
+        predicciones
     )
 
-    return resultados
+    return modelos
 
 
 def generar_formulaciones(
-    cation_a,
-    cation_b,
+    familia,
+    elemento_a,
+    elemento_b,
     elemento_base,
-    elemento_oxigeno
+    anion
 ):
-    """
-    Genera formulaciones hipotéticas de tipo espinela.
-
-    Ejemplo:
-    Co0.5Ni0.5Fe2O4
-
-    Estas formulaciones son candidatas hipotéticas y no materiales confirmados.
-    """
+    plantilla = FAMILIAS[
+        familia
+    ]["plantilla"]
 
     formulaciones = []
 
-    composiciones = [
+    proporciones = [
         (1.0, 0.0),
         (0.75, 0.25),
         (0.50, 0.50),
@@ -408,34 +535,110 @@ def generar_formulaciones(
         (0.0, 1.0)
     ]
 
-    for fraccion_a, fraccion_b in composiciones:
-
-        partes = []
-
-        if fraccion_a > 0:
-            if fraccion_a == 1.0:
-                partes.append(f"{cation_a}")
-            else:
-                partes.append(f"{cation_a}{fraccion_a:g}")
-
-        if fraccion_b > 0:
-            if fraccion_b == 1.0:
-                partes.append(f"{cation_b}")
-            else:
-                partes.append(f"{cation_b}{fraccion_b:g}")
-
-        partes.append(f"{elemento_base}2")
-        partes.append(f"{elemento_oxigeno}4")
-
-        formula = "".join(partes)
+    for fraccion_a, fraccion_b in proporciones:
 
         try:
+            if plantilla == "ferrita":
+
+                partes = []
+
+                if fraccion_a > 0:
+                    partes.append(
+                        f"{elemento_a}{fraccion_a:g}"
+                    )
+
+                if fraccion_b > 0:
+                    partes.append(
+                        f"{elemento_b}{fraccion_b:g}"
+                    )
+
+                formula = (
+                    "".join(partes)
+                    + f"{elemento_base}2{anion}4"
+                )
+
+            elif plantilla == "oxido":
+
+                partes = []
+
+                if fraccion_a > 0:
+                    partes.append(
+                        f"{elemento_a}{fraccion_a:g}"
+                    )
+
+                if fraccion_b > 0:
+                    partes.append(
+                        f"{elemento_b}{fraccion_b:g}"
+                    )
+
+                formula = (
+                    "".join(partes)
+                    + f"{anion}3"
+                )
+
+            elif plantilla == "aleacion":
+
+                partes = []
+
+                if fraccion_a > 0:
+                    partes.append(
+                        f"{elemento_a}{fraccion_a:g}"
+                    )
+
+                if fraccion_b > 0:
+                    partes.append(
+                        f"{elemento_b}{fraccion_b:g}"
+                    )
+
+                formula = "".join(partes)
+
+            elif plantilla == "bateria":
+
+                partes = []
+
+                if fraccion_a > 0:
+                    partes.append(
+                        f"{elemento_a}{fraccion_a:g}"
+                    )
+
+                if fraccion_b > 0:
+                    partes.append(
+                        f"{elemento_b}{fraccion_b:g}"
+                    )
+
+                formula = (
+                    "Li"
+                    + "".join(partes)
+                    + f"{anion}2"
+                )
+
+            else:
+
+                partes = []
+
+                if fraccion_a > 0:
+                    partes.append(
+                        f"{elemento_a}{fraccion_a:g}"
+                    )
+
+                if fraccion_b > 0:
+                    partes.append(
+                        f"{elemento_b}{fraccion_b:g}"
+                    )
+
+                formula = (
+                    "".join(partes)
+                    + f"{elemento_base}{anion}3"
+                )
+
             formula_reducida = Composition(
                 formula
             ).reduced_formula
 
             if formula_reducida not in formulaciones:
-                formulaciones.append(formula_reducida)
+                formulaciones.append(
+                    formula_reducida
+                )
 
         except Exception:
             continue
@@ -451,6 +654,7 @@ def predecir_formulaciones(
     registros = []
 
     for formula in formulaciones:
+
         caracteristicas = caracteristicas_composicion(
             formula
         )
@@ -462,18 +666,18 @@ def predecir_formulaciones(
             caracteristicas
         ).reshape(1, -1)
 
-        densidad_predicha = modelos[
+        densidad = modelos[
             "modelo_densidad"
         ].predict(vector)[0]
 
-        estabilidad_predicha = modelos[
+        estabilidad = modelos[
             "modelo_estabilidad"
         ].predict(vector)[0]
 
         registros.append({
-            "Formula propuesta": formula,
-            "Densidad predicha": densidad_predicha,
-            "E_hull predicho": estabilidad_predicha,
+            "Fórmula propuesta": formula,
+            "Densidad predicha": densidad,
+            "E_hull predicho": estabilidad,
             "Estado": (
                 "Conocida en el conjunto"
                 if formula in formulas_conocidas
@@ -492,7 +696,7 @@ def predecir_formulaciones(
     ).reset_index(drop=True)
 
 
-def interpretar_candidatos_gemini(prompt, resultados):
+def interpretar_candidatos_gemini(prompt, familia, resultados):
     if not GEMINI_API_KEY:
         return (
             "Gemini no está conectado. Se muestran las predicciones del modelo."
@@ -510,25 +714,110 @@ def interpretar_candidatos_gemini(prompt, resultados):
         )
 
         instrucciones = f"""
-        Actúa como un experto en diseño computacional de materiales.
+        Actúa como un experto en diseño computacional de materiales,
+        síntesis inorgánica y caracterización experimental.
+
+        Familia de materiales:
+        {familia}
 
         Objetivo del usuario:
         {prompt}
 
-        Formulaciones propuestas por un modelo de machine learning:
+        Formulaciones propuestas por machine learning:
         {json.dumps(datos, ensure_ascii=False, default=str)}
 
-        Explica en español:
+        Redacta una respuesta clara en español con las siguientes secciones:
 
-        1. Qué formulaciones parecen más prometedoras.
-        2. Qué significa que sean hipotéticas.
-        3. Por qué las predicciones no equivalen a una confirmación experimental.
-        4. Qué cálculos adicionales deberían hacerse.
-        5. Qué ruta de síntesis podría explorarse.
-        6. Qué técnicas de caracterización serían necesarias.
+        ## 1. Interpretación del objetivo
 
-        No presentes las formulaciones como materiales confirmados.
-        No inventes protocolos exactos, precios, proveedores ni laboratorios.
+        Explica qué se intentó diseñar y qué propiedades se priorizaron.
+
+        ## 2. Interpretación de las formulaciones
+
+        Explica cuáles parecen más prometedoras y cuáles son hipotéticas.
+
+        ## 3. Limitaciones del modelo
+
+        Explica que el modelo aprendió relaciones aproximadas a partir de
+        materiales conocidos y que las predicciones no son confirmaciones
+        experimentales.
+
+        ## 4. Candidato recomendado
+
+        Selecciona una formulación para continuar con cálculos adicionales y
+        explica por qué.
+
+        ## 5. Rutas de síntesis, precursores y caracterización
+
+        Propón una o más rutas de síntesis que podrían explorarse para el
+        candidato recomendado.
+
+        Para cada ruta indica:
+
+        - Método de síntesis.
+        - Precursores químicos posibles.
+        - Función de cada precursor.
+        - Material y equipo de laboratorio.
+        - Variables que deberían controlarse.
+        - Riesgos principales.
+        - Productos secundarios que podrían formarse.
+
+        Explica también cómo debería caracterizarse el nuevo material.
+
+        Considera, cuando sea pertinente:
+
+        - Difracción de rayos X para identificar la fase cristalina.
+        - SEM o TEM para observar morfología y tamaño.
+        - EDS para composición elemental.
+        - FTIR o Raman para grupos y enlaces.
+        - VSM o magnetometría para propiedades magnéticas.
+        - DLS y potencial zeta para suspensiones.
+        - Análisis térmico.
+        - ICP-OES o técnicas equivalentes para composición.
+
+        No inventes cantidades exactas si no existe un protocolo validado.
+
+        ## 6. Reactivos y materiales
+
+        Presenta una tabla compacta:
+
+        | Reactivo o equipo | Función | Observación de seguridad |
+
+        ## 7. Costo preliminar
+
+        Presenta una tabla compacta:
+
+        | Precursor o consumible | Cantidad aproximada | Precio estimado MXN |
+
+        Aclara que los precios deben cotizarse y que son aproximados.
+
+        ## 8. Proveedores y SDS
+
+        Sugiere proveedores potenciales como Merck/Sigma-Aldrich,
+        Thermo Fisher, Fisher Scientific, Alfa Aesar u otros proveedores
+        mexicanos.
+
+        No afirmes disponibilidad actual. Para las fichas SDS, proporciona un
+        enlace solamente si estás seguro de que es oficial. Nunca inventes
+        enlaces. Si no tienes certeza, indica que debe buscarse el nombre y CAS
+        en la página oficial del fabricante.
+
+        ## 9. Laboratorios de la BUAP
+
+        Sugiere qué tipos de laboratorios o unidades académicas de la BUAP
+        podrían ser pertinentes para síntesis y caracterización.
+
+        No inventes nombres de laboratorios, responsables, disponibilidad ni
+        equipos. Indica que todo debe confirmarse con la unidad correspondiente.
+
+        ## 10. Siguiente etapa computacional
+
+        Recomienda validar los mejores candidatos mediante cálculos de
+        estructura, estabilidad, DFT, relajación geométrica o comparación con
+        nuevas bases de datos.
+
+        No presentes ninguna formulación como material confirmado, sintetizado,
+        biocompatible o clínicamente seguro.
         """
 
         respuesta = cliente.models.generate_content(
@@ -543,55 +832,65 @@ def interpretar_candidatos_gemini(prompt, resultados):
 
 
 # ============================================================
-# EXPLICACIÓN DEL MÉTODO
+# EXPLICACIÓN
 # ============================================================
 
 st.markdown(
-    '<div class="section">¿Qué hace esta pestaña?</div>',
+    '<div class="section">¿Qué hace esta página?</div>',
     unsafe_allow_html=True
 )
 
 st.write(
     """
-    Esta pestaña entrena modelos de machine learning con datos conocidos de
-    Materials Project. Después genera nuevas combinaciones químicas dentro de
-    una familia estructural definida por el usuario.
+    Esta página entrena modelos de machine learning utilizando datos de varias
+    familias de Materials Project. Después genera combinaciones químicas
+    hipotéticas dentro de la familia seleccionada.
 
-    En esta demostración se explora una familia tipo espinela con una fórmula
-    aproximada:
-
-    AFe₂O₄
-
-    y también formulaciones mixtas como:
-
-    A₀.₅B₀.₅Fe₂O₄
-
-    Las fórmulas generadas son propuestas computacionales. Todavía no se
-    conocen necesariamente en la base de datos ni se ha demostrado que puedan
-    sintetizarse.
+    El resultado no es todavía un material sintetizado. Es una hipótesis
+    computacional que debe continuar con validación estructural, cálculos de
+    estabilidad y caracterización experimental.
     """
 )
+
 
 # ============================================================
 # CONTROLES
 # ============================================================
 
 st.markdown(
-    '<div class="section">Define la familia química</div>',
+    '<div class="section">Selecciona la familia de materiales</div>',
+    unsafe_allow_html=True
+)
+
+familia = st.selectbox(
+    "Familia que deseas explorar",
+    list(FAMILIAS.keys())
+)
+
+st.info(
+    f"""
+    Se utilizarán los sistemas químicos asociados con la familia:
+
+    {", ".join(FAMILIAS[familia]["sistemas"])}
+    """
+)
+
+st.markdown(
+    '<div class="section">Define los elementos</div>',
     unsafe_allow_html=True
 )
 
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    cation_a = st.text_input(
-        "Catión A",
+    elemento_a = st.text_input(
+        "Elemento A",
         value="Co"
     )
 
 with col2:
-    cation_b = st.text_input(
-        "Catión B",
+    elemento_b = st.text_input(
+        "Elemento B",
         value="Ni"
     )
 
@@ -602,23 +901,23 @@ with col3:
     )
 
 with col4:
-    elemento_oxigeno = st.text_input(
+    anion = st.text_input(
         "Elemento aniónico",
         value="O"
     )
 
 st.markdown(
-    '<div class="section">Objetivo del diseño</div>',
+    '<div class="section">Objetivo de diseño</div>',
     unsafe_allow_html=True
 )
 
 prompt_ml = st.text_area(
-    "Describe la formulación que deseas explorar",
+    "Describe qué deseas diseñar",
     value=(
-        "Genera una ferrita hipotética con baja energía sobre el envolvente "
-        "y densidad moderada para una posible aplicación magnética."
+        "Genera una formulación hipotética con baja energía sobre el "
+        "envolvente, densidad moderada y potencial aplicación magnética."
     ),
-    height=120
+    height=130
 )
 
 col5, col6 = st.columns(2)
@@ -647,8 +946,9 @@ ejecutar = st.button(
     use_container_width=True
 )
 
+
 # ============================================================
-# EJECUCIÓN DEL MODELO
+# EJECUCIÓN
 # ============================================================
 
 if ejecutar:
@@ -665,21 +965,14 @@ if ejecutar:
         )
         st.stop()
 
-    if len(cation_a.strip()) == 0:
-        st.error("Debes indicar el catión A.")
-        st.stop()
-
-    if len(cation_b.strip()) == 0:
-        st.error("Debes indicar el catión B.")
-        st.stop()
-
-    inicio = time.time()
+    inicio_total = time.time()
 
     with st.spinner(
-        "Descargando datos de Materials Project..."
+        "Consultando varias familias de Materials Project..."
     ):
         dataset, mensaje = consultar_dataset_mp(
-            maximo_mp
+            sistemas=FAMILIAS[familia]["sistemas"],
+            maximo=maximo_mp
         )
 
     st.success(mensaje)
@@ -691,7 +984,7 @@ if ejecutar:
         st.stop()
 
     with st.spinner(
-        "Entrenando modelos de machine learning..."
+        "Entrenando los modelos de machine learning..."
     ):
         try:
             modelos = entrenar_modelos(
@@ -704,7 +997,7 @@ if ejecutar:
             st.stop()
 
     st.markdown(
-        '<div class="section">Calidad aproximada de los modelos</div>',
+        '<div class="section">Calidad aproximada del modelo</div>',
         unsafe_allow_html=True
     )
 
@@ -754,11 +1047,12 @@ if ejecutar:
             unsafe_allow_html=True
         )
 
-    formulas_nuevas = generar_formulaciones(
-        cation_a=cation_a.strip(),
-        cation_b=cation_b.strip(),
+    formulaciones = generar_formulaciones(
+        familia=familia,
+        elemento_a=elemento_a.strip(),
+        elemento_b=elemento_b.strip(),
         elemento_base=elemento_base.strip(),
-        elemento_oxigeno=elemento_oxigeno.strip()
+        anion=anion.strip()
     )
 
     formulas_conocidas = set(
@@ -766,10 +1060,10 @@ if ejecutar:
     )
 
     with st.spinner(
-        "Generando y evaluando formulaciones hipotéticas..."
+        "Generando y evaluando nuevas formulaciones..."
     ):
         resultados = predecir_formulaciones(
-            formulaciones=formulas_nuevas,
+            formulaciones=formulaciones,
             modelos=modelos,
             formulas_conocidas=formulas_conocidas
         )
@@ -818,7 +1112,7 @@ if ejecutar:
         x="Densidad predicha",
         y="E_hull predicho",
         color="Estado",
-        text="Formula propuesta",
+        text="Fórmula propuesta",
         hover_data=[
             "Ranking",
             "Densidad predicha",
@@ -850,11 +1144,12 @@ if ejecutar:
     )
 
     with st.spinner(
-        "Gemini está interpretando las nuevas formulaciones..."
+        "Gemini está preparando las rutas de síntesis, precursores y caracterización..."
     ):
         recomendacion = interpretar_candidatos_gemini(
-            prompt_ml,
-            resultados
+            prompt=prompt_ml,
+            familia=familia,
+            resultados=resultados
         )
 
     st.markdown(
@@ -866,12 +1161,13 @@ if ejecutar:
         unsafe_allow_html=True
     )
 
-    tiempo_total = time.time() - inicio
+    tiempo_total = time.time() - inicio_total
 
     st.caption(
         f"Tiempo total del experimento computacional: "
         f"{tiempo_total:.1f} segundos"
     )
+
 
 # ============================================================
 # ADVERTENCIA
@@ -885,6 +1181,10 @@ st.markdown(
     Las formulaciones generadas son hipótesis computacionales. El modelo aprende
     patrones a partir de materiales conocidos, pero no demuestra por sí mismo
     estabilidad cristalina, sintetizabilidad, toxicidad o desempeño.
+
+    Las rutas de síntesis, precursores, costos, proveedores, SDS y laboratorios
+    sugeridos por Gemini deben verificarse antes de realizar cualquier
+    experimento.
 
     Antes de intentar una síntesis se requieren cálculos adicionales, revisión
     bibliográfica, evaluación de seguridad y validación experimental.
