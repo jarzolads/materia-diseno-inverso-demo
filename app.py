@@ -17,15 +17,30 @@ st.set_page_config(
 
 st.title("Matéria: Agente para el diseño inverso de materiales")
 st.markdown("### Desarrollado por Jesús Arzola")
-st.caption("Demostración educativa con Gemini y Materials Project")
 
-st.write(
+st.info(
     """
-    Esta aplicación muestra cómo un agente de inteligencia artificial puede
-    interpretar propiedades objetivo, buscar materiales candidatos y proponer
-    una estrategia preliminar de síntesis.
+    **¿Para qué sirve Matéria?**
+
+    Matéria es un agente educativo para las primeras etapas del diseño inverso
+    de materiales. El usuario define las propiedades que desea y la aplicación
+    busca materiales candidatos, compara sus características y propone una
+    estrategia preliminar de síntesis.
+
+    El agente puede ayudar a responder preguntas como:
+
+    - ¿Qué materiales tienen una magnetización elevada?
+    - ¿Qué candidatos son relativamente estables?
+    - ¿Qué composición podría ser interesante para una aplicación?
+    - ¿Qué reactivos y equipo se necesitarían para explorar su síntesis?
+    - ¿Qué caracterizaciones deberían realizarse?
+
+    Matéria no sustituye la validación experimental, la revisión bibliográfica,
+    la caracterización ni la evaluación de seguridad.
     """
 )
+
+st.caption("Demostración educativa con Gemini y Materials Project")
 
 MP_API_KEY = st.secrets.get(
     "MP_API_KEY",
@@ -43,40 +58,98 @@ GEMINI_MODEL = st.secrets.get(
 )
 
 # ============================================================
+# TIPOS DE MATERIALES
+# ============================================================
+
+st.header("1. ¿Para qué tipos de materiales funciona?")
+
+st.markdown(
+    """
+    Matéria funciona principalmente con materiales sólidos inorgánicos que
+    pueden representarse mediante una composición química y una estructura
+    cristalina.
+
+    Es especialmente útil para explorar:
+    """
+)
+
+materiales = pd.DataFrame([
+    {
+        "Tipo de material": "Óxidos metálicos",
+        "Ejemplos": "Fe3O4, Fe2O3, TiO2, ZnO",
+        "Aplicaciones": "Magnetismo, catálisis, sensores y energía"
+    },
+    {
+        "Tipo de material": "Ferritas",
+        "Ejemplos": "CoFe2O4, NiFe2O4, MnFe2O4",
+        "Aplicaciones": "Magnetismo, hipertermia y separación magnética"
+    },
+    {
+        "Tipo de material": "Aleaciones metálicas",
+        "Ejemplos": "Fe-Ni, Fe-Co, Cu-Zn",
+        "Aplicaciones": "Propiedades mecánicas, magnéticas y térmicas"
+    },
+    {
+        "Tipo de material": "Materiales cerámicos",
+        "Ejemplos": "Al2O3, ZrO2, BaTiO3",
+        "Aplicaciones": "Aislamiento, sensores y materiales dieléctricos"
+    },
+    {
+        "Tipo de material": "Materiales para energía",
+        "Ejemplos": "Materiales para baterías y electrodos",
+        "Aplicaciones": "Almacenamiento y conversión de energía"
+    },
+    {
+        "Tipo de material": "Materiales bidimensionales",
+        "Ejemplos": "Grafeno, MoS2 y otros dicalcogenuros",
+        "Aplicaciones": "Electrónica, sensores y catálisis"
+    }
+])
+
+st.dataframe(
+    materiales,
+    use_container_width=True,
+    hide_index=True
+)
+
+st.warning(
+    """
+    Esta demostración está configurada para materiales magnéticos basados en
+    hierro y óxidos metálicos. Para utilizar polímeros, proteínas, moléculas
+    orgánicas o materiales compuestos sería necesario modificar las propiedades,
+    la base de datos y la estrategia de síntesis.
+    """
+)
+
+# ============================================================
 # CONCEPTOS CIENTÍFICOS
 # ============================================================
 
-st.header("1. Conceptos científicos")
-
-st.info(
-    """
-    Antes de elegir valores, revisa qué significa cada propiedad.
-    """
-)
+st.header("2. Conceptos científicos")
 
 with st.expander("Magnetización"):
     st.markdown(
         """
-        La magnetización es el momento magnético por unidad de volumen.
-        Indica qué tan intensamente responde un material frente a un campo
+        La magnetización es el momento magnético por unidad de volumen de un
+        material. Indica qué tan intensamente responde frente a un campo
         magnético externo.
 
-        En hipertermia magnética puede relacionarse con la respuesta del
-        material ante un campo alterno. Sin embargo, también deben estudiarse
-        el tamaño de partícula, la estabilidad, la dispersión y la
-        biocompatibilidad.
+        Para hipertermia magnética puede ser una propiedad importante porque
+        influye en la respuesta ante un campo magnético alterno. Sin embargo,
+        también deben estudiarse el tamaño de partícula, la estabilidad, la
+        dispersión, la toxicidad y la biocompatibilidad.
         """
     )
 
 with st.expander("Energía sobre el envolvente"):
     st.markdown(
         """
-        La energía sobre el envolvente, o `energy above hull`, es un indicador
-        computacional de estabilidad termodinámica.
+        La energía sobre el envolvente, conocida como `energy above hull` o
+        `E_hull`, es un indicador computacional de estabilidad termodinámica.
 
-        Un valor cercano a cero indica que el material se encuentra cerca de la
-        envolvente de estabilidad. Un valor alto puede indicar que existen
-        fases alternativas más estables.
+        Un valor cercano a cero indica que el material está cerca de la
+        envolvente de estabilidad. Un valor mayor puede indicar que existen
+        otras fases más estables.
         """
     )
 
@@ -84,15 +157,14 @@ with st.expander("Densidad"):
     st.markdown(
         """
         La densidad es la masa por unidad de volumen. Puede influir en la
-        sedimentación, la separación magnética y el comportamiento de una
-        suspensión de nanopartículas.
+        sedimentación, separación magnética y preparación de suspensiones.
         """
     )
 
 with st.expander("Ordenamiento magnético"):
     st.markdown(
         """
-        Describe la organización de los momentos magnéticos del sólido.
+        Describe cómo se organizan los momentos magnéticos dentro del sólido.
 
         Algunos tipos son ferromagnético, antiferromagnético, ferrimagnético y
         paramagnético.
@@ -108,13 +180,13 @@ with st.expander("Diseño inverso"):
         En el diseño inverso se parte de las propiedades deseadas y se buscan
         composiciones que potencialmente puedan cumplirlas.
 
-        El flujo general es:
+        El flujo de trabajo es:
 
         1. Definir propiedades objetivo.
         2. Consultar una base de datos.
-        3. Filtrar materiales.
-        4. Comparar candidatos.
-        5. Proponer una estrategia experimental.
+        3. Filtrar materiales candidatos.
+        4. Comparar los resultados.
+        5. Proponer una síntesis preliminar.
         6. Validar experimentalmente.
         """
     )
@@ -122,8 +194,8 @@ with st.expander("Diseño inverso"):
 st.warning(
     """
     Materials Project proporciona principalmente propiedades calculadas para
-    estructuras cristalinas. Estos datos no sustituyen la caracterización
-    experimental ni garantizan biocompatibilidad.
+    estructuras cristalinas. Los resultados no garantizan que una nanopartícula
+    sintetizada tenga exactamente las mismas propiedades.
     """
 )
 
@@ -133,52 +205,52 @@ st.warning(
 
 DATOS_DEMO = pd.DataFrame([
     {
-        "material_id": "mp-12767",
+        "material_id": "mp-demo-001",
         "formula_pretty": "Fe3O4",
         "chemsys": "Fe-O",
         "density": 5.18,
         "energy_above_hull": 0.002,
-        "ordering": "FiM",
+        "ordering": "Ferrimagnético",
         "total_magnetization_normalized_vol": 480.0,
         "symmetry": "Fd-3m"
     },
     {
-        "material_id": "mp-19306",
+        "material_id": "mp-demo-002",
         "formula_pretty": "Fe2O3",
         "chemsys": "Fe-O",
         "density": 5.24,
         "energy_above_hull": 0.015,
-        "ordering": "AFM",
+        "ordering": "Antiferromagnético",
         "total_magnetization_normalized_vol": 25.0,
         "symmetry": "R-3c"
     },
     {
-        "material_id": "mp-23115",
+        "material_id": "mp-demo-003",
         "formula_pretty": "CoFe2O4",
         "chemsys": "Co-Fe-O",
         "density": 5.30,
         "energy_above_hull": 0.008,
-        "ordering": "FiM",
+        "ordering": "Ferrimagnético",
         "total_magnetization_normalized_vol": 520.0,
         "symmetry": "Fd-3m"
     },
     {
-        "material_id": "mp-1234",
+        "material_id": "mp-demo-004",
         "formula_pretty": "NiFe2O4",
         "chemsys": "Fe-Ni-O",
         "density": 5.35,
         "energy_above_hull": 0.012,
-        "ordering": "FiM",
+        "ordering": "Ferrimagnético",
         "total_magnetization_normalized_vol": 390.0,
         "symmetry": "Fd-3m"
     },
     {
-        "material_id": "mp-5678",
+        "material_id": "mp-demo-005",
         "formula_pretty": "MnFe2O4",
         "chemsys": "Fe-Mn-O",
         "density": 4.86,
         "energy_above_hull": 0.021,
-        "ordering": "FiM",
+        "ordering": "Ferrimagnético",
         "total_magnetization_normalized_vol": 430.0,
         "symmetry": "Fd-3m"
     }
@@ -189,10 +261,6 @@ DATOS_DEMO = pd.DataFrame([
 # ============================================================
 
 def preparar_columnas(datos):
-    """
-    Crea las columnas necesarias para evitar errores KeyError.
-    """
-
     resultado = datos.copy()
 
     columnas_requeridas = [
@@ -290,13 +358,28 @@ def cargar_materials_project():
                 "No se encontraron datos. Se utilizaron datos demostrativos."
             )
 
+        magnetizacion_disponible = (
+            datos["total_magnetization_normalized_vol"]
+            .notna()
+            .any()
+        )
+
+        if not magnetizacion_disponible:
+            return (
+                DATOS_DEMO.copy(),
+                """
+                Materials Project no devolvió magnetización para esta consulta.
+                Se utilizaron datos demostrativos para ejecutar el agente.
+                """
+            )
+
         return datos, "Datos cargados desde Materials Project."
 
     except Exception as error:
         return (
             DATOS_DEMO.copy(),
-            "No fue posible consultar Materials Project. "
-            f"Se utilizaron datos demostrativos. Detalle: {error}"
+            "Se utilizaron datos demostrativos. "
+            f"Detalle de la consulta: {error}"
         )
 
 
@@ -309,8 +392,6 @@ def filtrar_materiales(
 ):
     resultado = preparar_columnas(datos)
 
-    # IMPORTANTE:
-    # El nombre correcto es magnetization, escrito en inglés.
     magnetizacion = resultado[
         "total_magnetization_normalized_vol"
     ].fillna(0)
@@ -371,22 +452,22 @@ def consultar_gemini(consulta, candidatos):
         prompt = f"""
         Actúa como un agente educativo de diseño inverso de materiales.
 
-        Solicitud del usuario:
+        Solicitud:
         {consulta}
 
         Candidatos:
         {json.dumps(datos, ensure_ascii=False, default=str)}
 
-        Responde en español e indica:
+        Responde en español:
 
-        1. Qué propiedad es prioritaria.
-        2. Qué candidato parece más interesante.
-        3. Qué compromisos existen entre las propiedades.
-        4. Qué información experimental falta.
-        5. Qué estrategia preliminar de síntesis podría explorarse.
-        6. Qué caracterizaciones deberían realizarse.
+        1. Identifica la propiedad prioritaria.
+        2. Explica cuál candidato es más interesante.
+        3. Describe los compromisos entre magnetización, estabilidad y densidad.
+        4. Indica qué información experimental falta.
+        5. Propón una estrategia preliminar de síntesis.
+        6. Indica qué técnicas de caracterización deben utilizarse.
 
-        No afirmes que el material es automáticamente biocompatible.
+        No afirmes que el material es automáticamente biocompatible o clínico.
         """
 
         respuesta = cliente.models.generate_content(
@@ -401,10 +482,10 @@ def consultar_gemini(consulta, candidatos):
 
 
 # ============================================================
-# PROPIEDADES OBJETIVO
+# SELECCIÓN DE PROPIEDADES
 # ============================================================
 
-st.header("2. Define las propiedades objetivo")
+st.header("3. Define las propiedades objetivo")
 
 columna_1, columna_2, columna_3 = st.columns(3)
 
@@ -447,8 +528,8 @@ ordenar_por = st.selectbox(
 consulta_usuario = st.text_area(
     "Describe el objetivo del material",
     value=(
-        "Busco un material magnético estable, con magnetización elevada, "
-        "para explorar una aplicación de hipertermia magnética."
+        "Busco un material magnético estable con magnetización elevada "
+        "para explorar hipertermia magnética."
     ),
     height=100
 )
@@ -495,7 +576,7 @@ if boton_cargar or boton_ejemplo:
         ordenar_por
     )
 
-    st.header("3. Resultados del diseño inverso")
+    st.header("4. Resultados del diseño inverso")
 
     if resultados.empty:
         st.error(
@@ -537,14 +618,11 @@ if boton_cargar or boton_ejemplo:
             hover_name="formula_pretty",
             hover_data=["material_id", "chemsys"],
             labels={
-                "energy_above_hull":
-                    "Energía sobre el envolvente",
+                "energy_above_hull": "Energía sobre el envolvente",
                 "total_magnetization_normalized_vol":
                     "Magnetización normalizada por volumen",
-                "ordering":
-                    "Ordenamiento magnético",
-                "density":
-                    "Densidad"
+                "ordering": "Ordenamiento magnético",
+                "density": "Densidad"
             },
             title="Mapa de candidatos"
         )
@@ -554,7 +632,7 @@ if boton_cargar or boton_ejemplo:
             use_container_width=True
         )
 
-        st.header("4. Interpretación del agente")
+        st.header("5. Interpretación del agente")
 
         with st.spinner("Gemini está interpretando los resultados..."):
             explicacion = consultar_gemini(
@@ -568,7 +646,7 @@ if boton_cargar or boton_ejemplo:
 # SÍNTESIS
 # ============================================================
 
-st.header("5. Estrategia preliminar de síntesis")
+st.header("6. Estrategia preliminar de síntesis")
 
 st.write(
     """
@@ -724,7 +802,7 @@ st.warning(
 # COSTOS
 # ============================================================
 
-st.header("6. Costo preliminar")
+st.header("7. Costo preliminar")
 
 costos = pd.DataFrame([
     {
