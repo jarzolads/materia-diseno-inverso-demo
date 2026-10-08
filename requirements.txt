@@ -6,3 +6,4 @@ mp-api
 pymatgen
 google-genai
 scikit-learn
+python-telegram-bot
