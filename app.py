@@ -18,10 +18,10 @@ st.set_page_config(
 
 st.title("Matéria: Agente para el diseño inverso de materiales")
 
-st.markdown("### Desarrollado por Jesús Arzola")
+st.markdown("### Desarrollado por Dr. Jesús Andrés Arzola Flores")
 
 st.caption(
-    "Aplicación demostrativa con Gemini y Materials Project"
+    "Aplicación demostrativa con LLM + Materials Project"
 )
 
 st.write(
